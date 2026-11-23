@@ -38,7 +38,6 @@ QToolTip {
 }
 
 /* sidebar */
-QLabel#Avatar { background: #6b4f3f; border-radius: 14px; color: #ffffff; font-weight: 600; font-size: 13px; }
 
 /* historique : panneau Dossiers / Récents */
 QWidget#HistoryPanel, QWidget#HistoryContent, QScrollArea#HistoryScroll { background: transparent; }

@@ -43,10 +43,6 @@ class Sidebar(QWidget):
         for b in (self.home, self.history, self.manager, self.more):
             col.addWidget(b)
         col.addStretch(1)
-        av = QLabel("M", objectName="Avatar")
-        av.setFixedSize(28, 28)
-        av.setAlignment(Qt.AlignCenter)
-        col.addWidget(av, 0, Qt.AlignHCenter)
 
     def set_history_checked(self, on: bool) -> None:
         self.history.setChecked(on)
