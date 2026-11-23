@@ -20,7 +20,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795432796" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795433048" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -38,7 +38,7 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 |---|---|
 | 🤖 **100 % local** | Utilise tes modèles Ollama : rien ne quitte ton ordinateur. |
 | ☁️ **Modèles NVIDIA** | Ajoute ta clé API pour utiliser les modèles hébergés. La clé est chiffrée sur disque (DPAPI Windows). |
-| 🗂️ **Historique organisé** | Dossiers, épinglage, archivage, renommage, déplacement et recherche rapide. |
+| 🗂️ **Historique organisé** | Dossiers, épinglage, archivage, renommage, déplacement et recherche rapide. Sélection multiple (`Ctrl` + clic, `Maj` + clic) pour archiver ou supprimer plusieurs discussions d'un coup. |
 | 📎 **Fichiers joints** | Bouton `+` ou glisser-déposer : fichiers texte et code (lus par le modèle) et images (modèles Ollama avec vision). |
 | ⚖️ **Comparaison de modèles** | Suis une vraie conversation avec deux modèles à la fois : réponses côte à côte, chacun se souvient de ses propres réponses, avec temps de réponse et longueur (`Ctrl+Maj+M`). Les comparaisons sont enregistrées dans l'historique et se rouvrent comme une conversation. |
 | 🇫🇷 **Réponses en français** | Tous les modèles répondent toujours en français, avec des emojis adaptés au sujet. |

@@ -1,9 +1,9 @@
 """Barre latérale d'icônes (52 px) + panneau Dossiers / Récents."""
 from __future__ import annotations
 
-from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QRect, QRectF, Qt, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox,
+from PySide6.QtWidgets import (QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,
                                QScrollArea, QVBoxLayout, QWidget)
 
 from . import theme
@@ -79,11 +79,13 @@ class NavRow(QWidget):
 
     def __init__(self, text: str, icon: str | None = None, indent: int = 0, selected: bool = False,
                  actions: bool = False, pinned: bool = False, tag: str | None = None, icon_color: str | None = None,
-                 parent=None):
+                 checked: bool = False, parent=None):
         super().__init__(parent)
         self._text, self._icon, self._indent, self._selected = text, icon, indent, selected
         self._actions, self._pinned, self._tag = actions, pinned, tag
         self._icon_color = icon_color
+        self._checked = checked          # sélection multiple (Ctrl / Maj + clic)
+        self.last_mods = Qt.NoModifier   # touches maintenues lors du dernier clic
         self._hover = False
         self._hover_btn = None   # "pin" | "menu" | None
         self.setFixedHeight(34)
@@ -131,6 +133,7 @@ class NavRow(QWidget):
             if menu.contains(pos):
                 self.menuClicked.emit(self.mapToGlobal(QPoint(menu.left(), menu.bottom() + 4)))
                 return
+        self.last_mods = e.modifiers()
         self.clicked.emit()
 
     def contextMenuEvent(self, e) -> None:
@@ -139,9 +142,9 @@ class NavRow(QWidget):
     def paintEvent(self, e) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        if self._selected or self._hover:
+        if self._checked or self._selected or self._hover:
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor("#2d2d2e" if self._selected else "#252627"))
+            p.setBrush(QColor("#2f4a86" if self._checked else "#2d2d2e" if self._selected else "#252627"))
             p.drawRoundedRect(QRectF(self.rect()), 10, 10)
         x = 12 + self._indent
         if self._icon:
@@ -249,6 +252,8 @@ class HistoryPanel(QWidget):
     conversationMenuRequested = Signal(int, QPoint)
     pinRequested = Signal(int)
     folderMenuRequested = Signal(int, QPoint)
+    bulkDeleteRequested = Signal(list)      # ids des conversations sélectionnées
+    bulkArchiveRequested = Signal(list, bool)
     widthChanged = Signal(int)     # largeur choisie à la souris (à mémoriser)
     openChanged = Signal(bool)     # ouvert / fermé (aussi par glissement)
 
@@ -263,6 +268,9 @@ class HistoryPanel(QWidget):
         self._open = False
         self._folders, self._convs, self._current = [], [], None
         self._show_archived = False
+        self._sel: set[int] = set()          # sélection multiple (Ctrl / Maj + clic)
+        self._anchor: int | None = None
+        self._order: list[int] = []          # conversations visibles, dans l'ordre d'affichage
         self._width = self.WIDTH
         self._drag_start = 0
         self._anim = QPropertyAnimation(self, b"maximumWidth", self)
@@ -300,6 +308,34 @@ class HistoryPanel(QWidget):
         self.col.setSpacing(1)
         self.scroll.setWidget(self.content)
         v.addWidget(self.scroll, 1)
+
+        # barre d'actions de la sélection multiple
+        self.sel_bar = QFrame(objectName="SelBar")
+        sv = QVBoxLayout(self.sel_bar)
+        sv.setContentsMargins(12, 8, 6, 8)
+        sv.setSpacing(6)
+        top = QHBoxLayout()
+        self.sel_label = QLabel(objectName="SelLabel")
+        top.addWidget(self.sel_label, 1)
+        close = IconButton("win_close", size=(26, 26), icon_size=12, radius=8, tooltip="Annuler la sélection (Échap)")
+        close.clicked.connect(self.clear_selection)
+        top.addWidget(close)
+        sv.addLayout(top)
+        btns = QHBoxLayout()
+        btns.setContentsMargins(0, 0, 6, 0)
+        btns.setSpacing(6)
+        self.sel_archive = QPushButton("Archiver", objectName="SelBtn")
+        self.sel_delete = QPushButton("Supprimer", objectName="SelBtnDanger")
+        for b_ in (self.sel_archive, self.sel_delete):
+            b_.setCursor(Qt.PointingHandCursor)
+            b_.setFocusPolicy(Qt.NoFocus)
+            b_.setMinimumHeight(32)
+            btns.addWidget(b_, 1)
+        sv.addLayout(btns)
+        self.sel_archive.clicked.connect(lambda: self.bulkArchiveRequested.emit(self.selected_ids(), True))
+        self.sel_delete.clicked.connect(lambda: self.bulkDeleteRequested.emit(self.selected_ids()))
+        self.sel_bar.hide()
+        v.addWidget(self.sel_bar)
 
     # ----- ouverture -----
     def is_open(self) -> bool:
@@ -359,7 +395,59 @@ class HistoryPanel(QWidget):
     # ----- données -----
     def set_data(self, folders, convs, current: int | None) -> None:
         self._folders, self._convs, self._current = list(folders), list(convs), current
+        self._sel &= {c["id"] for c in self._convs}      # une conversation supprimée quitte la sélection
         self._rebuild()
+
+    # ----- sélection multiple -----
+    def selected_ids(self) -> list[int]:
+        return [cid for cid in self._order if cid in self._sel] + [c for c in self._sel if c not in self._order]
+
+    def drop_selection(self) -> None:
+        """Oublie la sélection sans redessiner (la liste est rechargée juste après)."""
+        self._sel.clear()
+        self._anchor = None
+
+    def clear_selection(self) -> None:
+        self._sel.clear()
+        self._anchor = None
+        self._rebuild()
+
+    def _on_conv_click(self, cid: int, mods) -> None:
+        if mods & Qt.ControlModifier:                    # Ctrl + clic : ajoute / retire
+            self._sel ^= {cid}
+            self._anchor = cid
+        elif mods & Qt.ShiftModifier and self._order:    # Maj + clic : plage depuis la dernière ligne cliquée
+            start = self._anchor if self._anchor in self._order else (
+                self._current if self._current in self._order else cid)
+            i, j = sorted((self._order.index(start), self._order.index(cid)))
+            self._sel |= set(self._order[i:j + 1])
+            self._anchor = start
+        else:
+            if self._sel:                                # clic simple : annule la sélection puis ouvre
+                self._sel.clear()
+                self._rebuild()
+            self._anchor = cid
+            self.openConversation.emit(cid)
+            return
+        self._rebuild()
+
+    def event(self, e) -> bool:
+        # Échap annule la sélection au lieu de déclencher le raccourci « arrêter la génération »
+        if e.type() == QEvent.ShortcutOverride and e.key() == Qt.Key_Escape and self._sel:
+            e.accept()
+            return True
+        return super().event(e)
+
+    def keyPressEvent(self, e) -> None:
+        if e.key() == Qt.Key_Escape and self._sel:
+            self.clear_selection()
+        elif e.key() == Qt.Key_Delete and self._sel:
+            self.bulkDeleteRequested.emit(self.selected_ids())
+        elif e.key() == Qt.Key_A and e.modifiers() & Qt.ControlModifier and self._order:
+            self._sel = set(self._order)
+            self._rebuild()
+        else:
+            super().keyPressEvent(e)
 
     def select(self, cid: int | None) -> None:
         self._current = cid
@@ -372,6 +460,7 @@ class HistoryPanel(QWidget):
             if it.widget():
                 it.widget().hide()
                 it.widget().deleteLater()
+        self._order = []
         live = [c for c in self._convs if not c["archived"]]
         pinned = [c for c in live if c["pinned"]]
         convs = [c for c in live if not c["pinned"]]
@@ -420,6 +509,13 @@ class HistoryPanel(QWidget):
                     self.col.addWidget(self._conv_row(c, 26))
         self.col.addStretch(1)
         self.scroll.verticalScrollBar().setValue(vpos)
+        n = len(self._sel)
+        self.sel_bar.setVisible(n > 0)
+        if n:
+            self.sel_label.setText(f"{n} sélectionnée{'s' if n > 1 else ''}")
+        self.setFocusPolicy(Qt.StrongFocus if n else Qt.NoFocus)
+        if n:
+            self.setFocus()
 
     def _toggle_archived(self) -> None:
         self._show_archived = not self._show_archived
@@ -432,9 +528,10 @@ class HistoryPanel(QWidget):
 
     def _conv_row(self, c, indent: int) -> NavRow:
         cid = c["id"]
+        self._order.append(cid)
         row = NavRow(c["title"], None, indent, selected=(cid == self._current), actions=True,
-                     pinned=bool(c["pinned"]), tag=c["tag"])
-        row.clicked.connect(lambda cid=cid: self.openConversation.emit(cid))
+                     pinned=bool(c["pinned"]), tag=c["tag"], checked=(cid in self._sel))
+        row.clicked.connect(lambda cid=cid, row=row: self._on_conv_click(cid, row.last_mods))
         row.context.connect(lambda pos, cid=cid: self._conv_menu(cid, pos))
         row.menuClicked.connect(lambda pos, cid=cid: self._conv_menu(cid, pos))
         row.pinClicked.connect(lambda cid=cid: self.pinRequested.emit(cid))

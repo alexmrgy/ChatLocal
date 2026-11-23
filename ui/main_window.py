@@ -132,6 +132,8 @@ class MainWindow(QWidget):
         hp = self.history_panel = HistoryPanel()
         hp.newChat.connect(self.new_chat)
         hp.openConversation.connect(self.open_conversation)
+        hp.bulkDeleteRequested.connect(self.bulk_delete)
+        hp.bulkArchiveRequested.connect(self._bulk_archive_from_panel)
         hp.renameConversation.connect(self.rename_conversation)
         hp.deleteConversation.connect(self.delete_conversation)
         hp.moveConversation.connect(self._move_conversation)
@@ -821,6 +823,10 @@ class MainWindow(QWidget):
     # ---- actions groupées ----
     def _after_bulk(self) -> None:
         self._reload_history()
+
+    def _bulk_archive_from_panel(self, ids: list, on: bool) -> None:
+        self.history_panel.drop_selection()
+        self.bulk_archive(ids, on)
 
     def bulk_delete(self, ids: list) -> None:
         rows = [self.db.get_conversation(c) for c in ids]
