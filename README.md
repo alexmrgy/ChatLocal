@@ -16,7 +16,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
 
 <p>
   <a href="https://github.com/alexmrgy/ChatLocal/raw/main/download/ChatLocal.exe">
-    <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20T%C3%A9l%C3%A9charger-ChatLocal.exe-4867be?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger ChatLocal.exe">
+    <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20T%C3%A9l%C3%A9charger-ChatLocal-4867be?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger ChatLocal">
   </a>
 </p>
 
@@ -62,14 +62,14 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 
 ### ⬇️ Le plus simple : télécharger l'application
 
-1. **[Télécharge `ChatLocal.exe`](https://github.com/alexmrgy/ChatLocal/raw/main/download/ChatLocal.exe)** (environ 40 Mo).
+1. **[Télécharge ChatLocal](https://github.com/alexmrgy/ChatLocal/raw/main/download/ChatLocal.exe)** (environ 40 Mo).
 2. Double-clique dessus : rien à installer.
 3. Installe [Ollama](https://ollama.com) si ce n'est pas déjà fait, puis `ollama pull gemma3` pour avoir un modèle.
 
 > ⚠️ **Windows bloque le fichier ?** L'application n'est pas signée, donc Windows peut afficher
 > « Une stratégie de contrôle d'application a bloqué ce fichier » ou « Windows a protégé votre ordinateur ».
 > Deux solutions :
-> - **Débloquer le fichier** : clic droit sur `ChatLocal.exe` → **Propriétés** → coche **Débloquer** en bas → **OK**
+> - **Débloquer le fichier** : clic droit sur le fichier **ChatLocal** téléchargé → **Propriétés** → coche **Débloquer** en bas → **OK**
 >   (ou **Informations complémentaires** → **Exécuter quand même** pour SmartScreen).
 > - **Sans exécutable** : installe Python, puis lance `ChatLocal.pyw` (double-clic), voir la section ci-dessous.
 
@@ -89,16 +89,16 @@ Tu peux aussi double-cliquer sur `ChatLocal.pyw` : même application, sans fenê
 
 > 💡 `gemma3` n'est qu'un exemple : n'importe quel modèle Ollama fonctionne.
 
-### 📦 Créer l'exécutable Windows (.exe)
+### 📦 Créer l'application Windows
 
-Un seul fichier `ChatLocal.exe`, sans console et avec son icône, à lancer par double-clic :
+Un seul fichier ChatLocal, sans console et avec son icône, à lancer par double-clic :
 
 ```powershell
 pip install pyinstaller
 python scripts/build_exe.py
 ```
 
-Le résultat se trouve dans `dist/ChatLocal.exe` (environ 40 Mo) et une copie dans `download/`, utilisée par le bouton de téléchargement. Ollama doit toujours être installé séparément,
+Le résultat se trouve dans le dossier `dist/` (environ 40 Mo) et une copie dans `download/`, utilisée par le bouton de téléchargement. Ollama doit toujours être installé séparément,
 et Python doit être installé si tu veux lancer du code Python depuis le terminal intégré.
 
 ## ⌨️ Raccourcis
@@ -131,7 +131,7 @@ et Python doit être installé si tu veux lancer du code Python depuis le termin
 ```text
 ChatLocal/
 ├── main.py            point d'entrée
-├── ChatLocal.pyw      lanceur par double-clic (sans console, sans .exe)
+├── ChatLocal.pyw      lanceur par double-clic (sans console, sans application à télécharger)
 ├── attachments.py     lecture et limites des fichiers joints
 ├── system_prompt.py   consignes envoyées aux modèles (français, emojis, heure du PC)
 ├── ui/                interface PySide6 (fenêtre, chat, sidebar, éditeur, terminal…)
@@ -140,8 +140,8 @@ ChatLocal/
 ├── database/          base SQLite et chiffrement des clés
 ├── styles/            thème sombre (dark.qss)
 ├── assets/            polices et icônes SVG
-├── scripts/           icônes, exécutable (.exe) et capture d'écran
-├── download/          ChatLocal.exe (application prête à l'emploi)
+├── scripts/           icônes, application Windows et capture d'écran
+├── download/          ChatLocal (application prête à l'emploi)
 ├── tests/             tests automatiques
 └── docs/              images du README
 ```
