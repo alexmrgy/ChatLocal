@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="Logo ChatLocal" width="110">
+<img src="assets/logo_512.png" alt="Logo ChatLocal" width="120">
 
 <h1>ChatLocal</h1>
 
@@ -28,7 +28,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795435006" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795435093" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
