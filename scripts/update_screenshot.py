@@ -3,7 +3,9 @@
 Usage : python scripts/update_screenshot.py
 """
 import os
+import re
 import sys
+import time
 import tempfile
 from pathlib import Path
 
@@ -27,5 +29,10 @@ app.processEvents()
 out = ROOT / "docs" / "screenshot.png"
 out.parent.mkdir(exist_ok=True)
 win.grab().save(str(out))
+# change le paramètre ?v= dans le README pour forcer GitHub / le navigateur à recharger l'image
+readme = ROOT / "README.md"
+text = readme.read_text(encoding="utf-8")
+readme.write_text(re.sub(r"docs/screenshot\.png(\?v=\d+)?", f"docs/screenshot.png?v={int(time.time())}", text),
+                  encoding="utf-8")
 print("Capture enregistrée :", out)
 os._exit(0)

@@ -9,7 +9,7 @@
 ![Ollama](https://img.shields.io/badge/IA-Ollama-black)
 ![Platform](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
 
-<img src="docs/screenshot.png" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795429090" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
