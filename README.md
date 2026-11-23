@@ -20,7 +20,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795429649" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795429839" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
