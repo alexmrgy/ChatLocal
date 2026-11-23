@@ -14,7 +14,6 @@ HOME_COLUMN = 640
 SHORTCUTS = [
     ("image_plus", "Créer une image ou un sticker", "Décris en détail l'image ou le sticker à créer : "),
     ("pencil", "Écrire ou modifier", "Aide-moi à écrire ou à modifier ce texte : "),
-    ("globe", "Rechercher sur le Web", "Recherche des informations sur : "),
 ]
 
 
