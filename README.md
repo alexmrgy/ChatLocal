@@ -15,7 +15,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
 </p>
 
 <p>
-  <a href="https://github.com/alexmrgy/ChatLocal/raw/main/download/ChatLocal.exe">
+  <a href="https://raw.githubusercontent.com/alexmrgy/ChatLocal/main/download/ChatLocal.exe?v=1795435689">
     <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20T%C3%A9l%C3%A9charger-ChatLocal-4867be?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger ChatLocal">
   </a>
 </p>
@@ -28,7 +28,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795435500" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795435690" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -62,7 +62,7 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 
 ### ⬇️ Le plus simple : télécharger l'application
 
-1. **[Télécharge ChatLocal](https://github.com/alexmrgy/ChatLocal/raw/main/download/ChatLocal.exe)** (environ 40 Mo).
+1. **[Télécharge ChatLocal](https://raw.githubusercontent.com/alexmrgy/ChatLocal/main/download/ChatLocal.exe?v=1795435689)** (environ 40 Mo).
 2. Double-clique dessus : rien à installer.
 3. Installe [Ollama](https://ollama.com) si ce n'est pas déjà fait, puis `ollama pull gemma3` pour avoir un modèle.
 
