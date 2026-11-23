@@ -134,7 +134,21 @@ class ActionMenu(QWidget):
         return ln
 
     def _fit(self) -> None:
-        self.adjustSize()
+        self.setMinimumSize(0, 0)
+        self.setMaximumSize(16777215, 16777215)
+        self._lay.activate()
+        self.layout().activate()
+        self.resize(self.sizeHint())        # se rétrécit aussi : adjustSize() gardait la hauteur du menu précédent
+        self._keep_on_screen()
+
+    def _keep_on_screen(self) -> None:
+        if not self.isVisible():
+            return
+        screen = QApplication.screenAt(self.pos()) or QApplication.primaryScreen()
+        g = screen.availableGeometry()
+        y = min(self.y(), g.bottom() - self.height() - 8)
+        x = min(self.x(), g.right() - self.width() - 8)
+        self.move(max(g.left() + 8, x), max(g.top() + 8, y))
 
     def _activate(self, item: MenuItem) -> None:
         if item.submenu is not None:
@@ -146,7 +160,7 @@ class ActionMenu(QWidget):
             QTimer.singleShot(0, item.callback)   # après la fermeture du popup (les dialogues prennent le focus)
 
     def popup(self, pos: QPoint) -> None:
-        self.adjustSize()
+        self.resize(self.sizeHint())
         screen = QApplication.screenAt(pos) or QApplication.primaryScreen()
         g = screen.availableGeometry()
         x = min(max(g.left() + 8, pos.x()), g.right() - self.width() - 8)

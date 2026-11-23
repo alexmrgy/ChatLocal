@@ -667,18 +667,25 @@ class MainWindow(QWidget):
         if self.cid is not None:
             self.rename_conversation(self.cid)
 
-    def _move_conversation(self, cid: int, fid: int) -> None:
+    def _move_conversation(self, cid: int, fid: int, announce: bool = False) -> None:
         self.db.move_conversation(cid, fid or None)
         if fid:
             self.db.set_folder_expanded(fid, True)
         self._reload_history()
+        if announce:
+            name = next((f["name"] for f in self.db.list_folders() if f["id"] == fid), "")
+            self.toast.show_message(f"Rangée dans « {name} »" if fid else "Retirée du dossier", 2000)
 
-    def create_folder(self) -> None:
+    def create_folder(self, then_move: int | None = None) -> None:
+        """Crée un dossier ; avec then_move, la conversation indiquée y est rangée aussitôt."""
         def done(name: str) -> None:
-            self.db.create_folder(name)
+            fid = self.db.create_folder(name)
             if not self.history_panel.is_open():
                 self.toggle_history()
-            self._reload_history()
+            if then_move is not None and self.db.get_conversation(then_move):
+                self._move_conversation(then_move, fid, announce=True)
+            else:
+                self._reload_history()
 
         self.prompt.ask("Nouveau dossier", "Regroupe tes conversations dans un dossier.",
                         "Nom du dossier", "", "Créer", done)
@@ -1042,12 +1049,17 @@ class MainWindow(QWidget):
             return
         pinned, locked, archived = bool(row["pinned"]), bool(row["locked"]), bool(row["archived"])
         folders = self.db.list_folders()
-        sub = [MenuItem(f["name"], "folder", callback=lambda fid=f["id"]: self._move_conversation(cid, fid))
+        here = row["folder_id"]
+        sub = [MenuItem(f["name"], "" if TAG_COLORS.get(f["color"]) else "folder", dot=TAG_COLORS.get(f["color"], ""),
+                        checked=(here == f["id"]),
+                        callback=lambda fid=f["id"]: self._move_conversation(cid, fid, announce=True))
                for f in folders]
         if folders:
             sub.append(SEP)
-        sub.append(MenuItem("Aucun dossier (Récents)", "chat", callback=lambda: self._move_conversation(cid, 0)))
-        sub.append(MenuItem("Nouveau dossier…", "plus", callback=self.create_folder))
+        if here is not None:
+            sub.append(MenuItem("Retirer du dossier", "arrow_left",
+                                callback=lambda: self._move_conversation(cid, 0, announce=True)))
+        sub.append(MenuItem("Nouveau dossier…", "plus", callback=lambda: self.create_folder(then_move=cid)))
         tag = row["tag"]
         sections = [MenuItem("Aucune section", "list", checked=not tag, callback=lambda: self.set_tag(cid, None))]
         sections += [MenuItem(name.capitalize(), dot=color, checked=(tag == name),
