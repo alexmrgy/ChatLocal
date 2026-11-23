@@ -1,0 +1,157 @@
+"""Menu contextuel arrondi (icône, raccourci, action en rouge, sous-menu par glissement)."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Callable
+
+from PySide6.QtCore import QPoint, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
+from PySide6.QtWidgets import QApplication, QFrame, QVBoxLayout, QWidget
+
+from . import theme
+from .icons import icon_pixmap
+
+DANGER = "#ff6b6b"
+
+
+@dataclass
+class MenuItem:
+    text: str
+    icon: str = ""
+    shortcut: str = ""
+    danger: bool = False
+    callback: Callable[[], None] | None = None
+    submenu: list | None = None          # liste de MenuItem / None (séparateur)
+    enabled: bool = True
+    dot: str = ""                      # pastille de couleur à la place de l'icône
+    checked: bool = False
+
+
+SEP = None
+
+
+class _Row(QWidget):
+    clicked = Signal()
+
+    def __init__(self, item: MenuItem, back: bool = False, parent=None):
+        super().__init__(parent)
+        self.item, self._back, self._hover = item, back, False
+        self.setFixedHeight(38)
+        self.setEnabled(item.enabled)
+        if item.enabled:
+            self.setCursor(Qt.PointingHandCursor)
+        f = QFont(self.font())
+        f.setPixelSize(15)
+        self.setFont(f)
+        w = QFontMetrics(f).horizontalAdvance(item.text) + 100
+        if item.shortcut:
+            w += QFontMetrics(f).horizontalAdvance(item.shortcut) + 40
+        self.setMinimumWidth(w)
+
+    def enterEvent(self, e) -> None:
+        self._hover = True
+        self.update()
+
+    def leaveEvent(self, e) -> None:
+        self._hover = False
+        self.update()
+
+    def mouseReleaseEvent(self, e) -> None:
+        if self.isEnabled() and e.button() == Qt.LeftButton:
+            self.clicked.emit()
+
+    def paintEvent(self, e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        it = self.item
+        if self._hover and self.isEnabled():
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(255, 107, 107, 34) if it.danger else QColor(255, 255, 255, 22))
+            p.drawRoundedRect(QRectF(self.rect()), 11, 11)
+        color = DANGER if it.danger else (theme.TEXT if self.isEnabled() else theme.TEXT_MUTE)
+        x = 14
+        icon = "chevron_left" if self._back else it.icon
+        if it.dot:
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(it.dot))
+            p.drawEllipse(QRectF(x + 3, (self.height() - 13) / 2, 13, 13))
+        elif icon:
+            p.drawPixmap(x, (self.height() - 19) // 2, icon_pixmap(icon, color, 19, self.devicePixelRatioF()))
+        x = 46
+        p.setPen(QColor(color))
+        p.drawText(x, 0, self.width() - x - 14, self.height(), Qt.AlignVCenter | Qt.AlignLeft, it.text)
+        if it.shortcut:
+            f = QFont(self.font())
+            f.setPixelSize(13)
+            p.setFont(f)
+            p.setPen(QColor(theme.TEXT_MUTE))
+            p.drawText(0, 0, self.width() - 16, self.height(), Qt.AlignVCenter | Qt.AlignRight, it.shortcut)
+        elif it.checked:
+            p.drawPixmap(self.width() - 14 - 18, (self.height() - 18) // 2,
+                         icon_pixmap("check", theme.TEXT, 18, self.devicePixelRatioF()))
+        elif it.submenu is not None and not self._back:
+            p.drawPixmap(self.width() - 14 - 17, (self.height() - 17) // 2,
+                         icon_pixmap("chevron_right", theme.TEXT_MUTE, 17, self.devicePixelRatioF()))
+
+
+class ActionMenu(QWidget):
+    def __init__(self, items: list, parent=None):
+        super().__init__(parent, Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self._root = items
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.body = QFrame(objectName="ActionMenuBody")
+        outer.addWidget(self.body)
+        self._lay = QVBoxLayout(self.body)
+        self._lay.setContentsMargins(8, 8, 8, 8)
+        self._lay.setSpacing(1)
+        self._build(items)
+
+    def _build(self, items: list, back_to: str = "") -> None:
+        while self._lay.count():
+            it = self._lay.takeAt(0)
+            if it.widget():
+                it.widget().hide()
+                it.widget().deleteLater()
+        if back_to:
+            back = _Row(MenuItem(back_to), back=True)
+            back.clicked.connect(lambda: (self._build(self._root), self._fit()))
+            self._lay.addWidget(back)
+            self._lay.addWidget(self._line())
+        for it in items:
+            if it is SEP:
+                self._lay.addWidget(self._line())
+                continue
+            row = _Row(it)
+            row.clicked.connect(lambda it=it: self._activate(it))
+            self._lay.addWidget(row)
+
+    def _line(self) -> QFrame:
+        ln = QFrame(objectName="ActionMenuLine")
+        ln.setFixedHeight(1)
+        return ln
+
+    def _fit(self) -> None:
+        self.adjustSize()
+
+    def _activate(self, item: MenuItem) -> None:
+        if item.submenu is not None:
+            self._build(item.submenu, back_to=item.text)
+            self._fit()
+            return
+        self.close()
+        if item.callback:
+            QTimer.singleShot(0, item.callback)   # après la fermeture du popup (les dialogues prennent le focus)
+
+    def popup(self, pos: QPoint) -> None:
+        self.adjustSize()
+        screen = QApplication.screenAt(pos) or QApplication.primaryScreen()
+        g = screen.availableGeometry()
+        x = min(max(g.left() + 8, pos.x()), g.right() - self.width() - 8)
+        y = pos.y()
+        if y + self.height() > g.bottom() - 8:
+            y = max(g.top() + 8, g.bottom() - self.height() - 8)
+        self.move(x, y)
+        self.show()

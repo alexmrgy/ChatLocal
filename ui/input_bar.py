@@ -1,0 +1,470 @@
+"""Barre de saisie : +, champ, sélecteur de modèle, bouton d'action."""
+from __future__ import annotations
+
+import textwrap
+
+from PySide6.QtCore import QEvent, QPoint, QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QKeyEvent, QPainter
+from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QTextEdit,
+                               QVBoxLayout, QWidget)
+
+from nvidia.client import PREFIX as NVIDIA_PREFIX
+
+from . import theme
+from .icons import icon_pixmap
+from .widgets import IconButton
+
+
+class PromptEdit(QTextEdit):
+    submit = Signal()
+    cancel = Signal()
+    MAX_H = 170
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("PromptEdit")
+        self.setAcceptRichText(False)
+        self.setFrameShape(QFrame.NoFrame)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setTabChangesFocus(True)
+        self.document().documentLayout().documentSizeChanged.connect(lambda _: self._fit())
+        self._fit()
+
+    ROW_H = 32   # même hauteur que les boutons de la barre
+
+    def _fit(self) -> None:
+        doc = self.document()
+        lh = self.fontMetrics().lineSpacing()
+        margin = doc.documentMargin()
+        lines = max(1, round((doc.size().height() - 2 * margin) / lh))
+        want = max(2.0, (self.ROW_H - lh) / 2) if lines == 1 else 6.0   # 1 ligne : texte centré verticalement
+        if abs(want - margin) > 0.1:
+            doc.setDocumentMargin(want)
+            margin = want
+        h = max(self.ROW_H, min(self.MAX_H, int(lines * lh + 2 * margin)))
+        if h != self.height():
+            self.setFixedHeight(h)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn if h >= self.MAX_H else Qt.ScrollBarAlwaysOff)
+
+    def showEvent(self, e) -> None:
+        super().showEvent(e)
+        self._fit()   # recalcul une fois la police finale appliquée
+
+    def event(self, e) -> bool:
+        if e.type() == QEvent.ShortcutOverride and e.key() == Qt.Key_Escape and self.receivers("2cancel()") > 0:
+            e.accept()   # Échap annule l'édition au lieu de déclencher « arrêter la génération »
+            return True
+        return super().event(e)
+
+    def keyPressEvent(self, e: QKeyEvent) -> None:
+        if e.key() == Qt.Key_Escape and self.receivers("2cancel()") > 0:
+            self.cancel.emit()
+            return
+        if e.key() in (Qt.Key_Return, Qt.Key_Enter) and not (e.modifiers() & Qt.ShiftModifier):
+            self.submit.emit()
+            return
+        super().keyPressEvent(e)
+
+
+class QuoteChip(QFrame):
+    """Carte « Sélection » au-dessus du champ de saisie : aperçu du texte sélectionné + croix pour le retirer."""
+    removed = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("QuoteChip")
+        self.setFixedWidth(300)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(16, 12, 10, 8)
+        v.setSpacing(8)
+        self.preview = QLabel(objectName="QuoteText")
+        self.preview.setWordWrap(True)
+        self.preview.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.preview.setMinimumHeight(48)
+        v.addWidget(self.preview)
+        bottom = QHBoxLayout()
+        bottom.setSpacing(8)
+        icon = QLabel()
+        icon.setPixmap(icon_pixmap("chat", theme.TEXT, 17, self.devicePixelRatioF()))
+        bottom.addWidget(icon)
+        bottom.addWidget(QLabel("Sélection", objectName="QuoteHead"))
+        bottom.addStretch(1)
+        close = IconButton("win_close", size=(26, 26), icon_size=13, radius=8, fg=theme.TEXT_MUTE, fg_hover=theme.TEXT,
+                           tooltip="Retirer la sélection")
+        close.clicked.connect(self.removed)
+        bottom.addWidget(close)
+        v.addLayout(bottom)
+
+    def set_text(self, text: str) -> None:
+        self.preview.setText(textwrap.shorten(" ".join(text.split()), width=170, placeholder="…"))
+
+
+class InputBar(QFrame):
+    submitted = Signal(str)
+    stopRequested = Signal()
+    modelChosen = Signal(str)
+    refreshRequested = Signal()
+    nvidiaKeyAdd = Signal()
+    nvidiaKeyRemove = Signal()
+    modelRenameRequested = Signal(str)   # identifiant complet du modèle à renommer
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("InputBar")
+        self._nvidia: list[str] = []
+        self._aliases: dict[str, str] = {}
+        self._has_key = False
+        self._models: list[str] = []
+        self._running = False
+        self._model = ""
+        self._generating = False
+
+        col = QVBoxLayout(self)
+        col.setContentsMargins(8, 7, 8, 7)
+        col.setSpacing(8)
+        self.quote_chip = QuoteChip()
+        self.quote_chip.removed.connect(self.clear_quote)
+        self.quote_chip.hide()
+        col.addWidget(self.quote_chip, 0, Qt.AlignLeft)
+        self._quote = ""
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        col.addLayout(row)
+
+        self.plus = IconButton("plus", size=(30, 30), icon_size=20, fg=theme.TEXT, fg_hover="#ffffff",
+                               bg_hover="#444444", tooltip="Ajouter (bientôt disponible)")
+        self.edit = PromptEdit()
+        self.edit.setPlaceholderText("Demander à Ollama")
+        self.edit.submit.connect(self._on_submit)
+        self.edit.textChanged.connect(self._sync_action)
+
+        self.model_btn = QPushButton(objectName="ModelBtn")
+        self.model_btn.setCursor(Qt.PointingHandCursor)
+        self.model_btn.setFocusPolicy(Qt.NoFocus)
+        self.model_btn.setLayoutDirection(Qt.RightToLeft)
+        self.model_btn.setFixedHeight(32)
+        self.model_btn.setIcon(QIcon(icon_pixmap("chevron_down", theme.TEXT_DIM, 14, self.devicePixelRatioF())))
+        self.model_btn.clicked.connect(self._open_menu)
+
+        self.action = IconButton("arrow_up", size=(32, 32), icon_size=19, fg="#181818", fg_hover="#181818",
+                                 bg="#5a5a5a", bg_hover="#5a5a5a", tooltip="Envoyer (Entrée)")
+        self.action.clicked.connect(self._on_action)
+
+        # les boutons restent alignés en bas quand le champ grandit
+        row.addWidget(self.plus, 0, Qt.AlignBottom)
+        row.addWidget(self.edit, 1, Qt.AlignVCenter)
+        row.addWidget(self.model_btn, 0, Qt.AlignBottom)
+        row.addWidget(self.action, 0, Qt.AlignBottom)
+        self.setMinimumHeight(46)
+        self._refresh_model_text()
+
+    # ----- état -----
+    def set_models(self, models: list[str], running: bool, nvidia: list[str] | None = None,
+                   has_key: bool = False) -> None:
+        self._models, self._running = models, running
+        self._nvidia, self._has_key = list(nvidia or []), has_key
+        self._refresh_model_text()
+
+    def set_aliases(self, aliases: dict) -> None:
+        self._aliases = dict(aliases)
+        self._refresh_model_text()
+
+    @staticmethod
+    def default_name(full: str) -> str:
+        return full[len(NVIDIA_PREFIX):] if full.startswith(NVIDIA_PREFIX) else full
+
+    def display_name(self, full: str) -> str:
+        """Nom affiché : l'alias choisi par l'utilisateur, sinon le nom réel du modèle."""
+        return self._aliases.get(full) or self.default_name(full)
+
+    def set_model(self, name: str) -> None:
+        self._model = name
+        self._refresh_model_text()
+
+    def model(self) -> str:
+        return self._model
+
+    # ----- extrait sélectionné (joint au prochain message) -----
+    def set_quote(self, text: str) -> None:
+        self._quote = text.strip()
+        self.quote_chip.set_text(self._quote)
+        self.quote_chip.setVisible(bool(self._quote))
+        self._sync_action()
+        self.edit.setFocus()
+
+    def quote(self) -> str:
+        return self._quote
+
+    def clear_quote(self) -> None:
+        self._quote = ""
+        self.quote_chip.hide()
+        self._sync_action()
+
+    def set_locked(self, locked: bool) -> None:
+        self.edit.setReadOnly(locked)
+        self.edit.setPlaceholderText("Chat verrouillé : déverrouille-le pour écrire" if locked else "Demander à Ollama")
+
+    def set_generating(self, on: bool) -> None:
+        self._generating = on
+        self._sync_action()
+
+    def set_text(self, text: str) -> None:
+        self.edit.setPlainText(text)
+        c = self.edit.textCursor()
+        c.movePosition(c.MoveOperation.End)
+        self.edit.setTextCursor(c)
+        self.edit.setFocus()
+
+    def focus_input(self) -> None:
+        self.edit.setFocus()
+
+    def _refresh_model_text(self) -> None:
+        if self._model.startswith(NVIDIA_PREFIX):
+            label, tip = self.display_name(self._model), "Modèle NVIDIA (API en ligne) : " + self.default_name(self._model)
+        elif not self._running and not self._nvidia:
+            label, tip = "Ollama hors ligne", "Ollama ne répond pas sur localhost:11434"
+        elif not self._models and not self._nvidia:
+            label, tip = "Aucun modèle", "Aucun modèle installé (ollama pull ...)"
+        else:
+            label = self.display_name(self._model) if self._model else "Choisir"
+            tip = "Modèle utilisé pour cette conversation" + (f" : {self._model}" if self._aliases.get(self._model) else "")
+        fm = QFontMetrics(self.model_btn.font())
+        self.model_btn.setText(fm.elidedText(label, Qt.ElideMiddle, 210))
+        self.model_btn.setToolTip(tip)
+        self.model_btn.adjustSize()
+
+    def _sync_action(self) -> None:
+        if self._generating:
+            self.action.set_icon("stop")
+            self.action.set_colors(fg="#181818", bg="#ececec")
+            self.action._fg_hover = self.action._fg
+            self.action._bg_hover = self.action._bg
+            self.action.setToolTip("Arrêter la génération")
+        elif self.edit.toPlainText().strip() or self._quote:
+            self.action.set_icon("arrow_up")
+            self.action.set_colors(fg="#181818", bg="#ececec")
+            self.action._fg_hover = self.action._fg
+            self.action._bg_hover = self.action._bg
+            self.action.setToolTip("Envoyer (Entrée)")
+        else:
+            self.action.set_icon("arrow_up")      # champ vide : bouton d'envoi grisé
+            self.action.set_colors(fg="#181818", bg="#5a5a5a")
+            self.action._fg_hover = self.action._fg
+            self.action._bg_hover = self.action._bg
+            self.action.setToolTip("Envoyer (Entrée)")
+        self.action.update()
+
+    # ----- actions -----
+    def _on_submit(self) -> None:
+        if self._generating:
+            return
+        text = self.edit.toPlainText().strip()
+        if not text and self._quote:
+            text = "Explique cet extrait."          # carte « Sélection » seule : question par défaut
+        if text:
+            self.edit.clear()
+            self.submitted.emit(text)
+
+    def _on_action(self) -> None:
+        if self._generating:
+            self.stopRequested.emit()
+        else:
+            self._on_submit()
+
+    def _open_menu(self) -> None:
+        note = ""
+        if not self._running and not self._has_key:
+            note = "Ollama n'est pas lancé"
+        elif self._running and not self._models and not self._has_key:
+            note = "Aucun modèle installé"
+        shown = self._models if self._running else []
+        names = {m: self.display_name(m) for m in shown}
+        names.update({NVIDIA_PREFIX + m: self.display_name(NVIDIA_PREFIX + m) for m in self._nvidia})
+        popup = ModelPopup(shown, self._nvidia, self._model, note, self._has_key, self, names)
+        popup.renameRequested.connect(self.modelRenameRequested)
+        popup.chosen.connect(self.modelChosen)
+        popup.addKey.connect(self.nvidiaKeyAdd)
+        popup.removeKey.connect(self.nvidiaKeyRemove)
+        popup.adjustSize()
+        btn = self.model_btn
+        screen = btn.screen().availableGeometry()
+        top_left = btn.mapToGlobal(QPoint(0, 0))
+        x = max(screen.left() + 8, top_left.x() + btn.width() - popup.width())
+        below = top_left.y() + btn.height() + 8
+        y = below if below + popup.height() <= screen.bottom() else max(screen.top() + 8, top_left.y() - popup.height() - 8)
+        popup.move(x, y)
+        popup.show()
+        self._popup = popup
+
+
+class _ModelRow(QWidget):
+    """Ligne du menu : modèle (coche à droite, crayon « renommer » au survol), titre de section ou action."""
+    clicked = Signal()
+    renameClicked = Signal()
+
+    def __init__(self, text: str, checked: bool = False, enabled: bool = True, kind: str = "item",
+                 icon: str = "", rename: bool = False, tip: str = "", parent=None):
+        super().__init__(parent)
+        self._text, self._checked, self._hover, self._kind, self._icon = text, checked, False, kind, icon
+        self._rename = rename
+        if tip:
+            self.setToolTip(tip)
+        self.setFixedHeight(30 if kind == "header" else 38)
+        self.setEnabled(enabled and kind != "header")
+        if self.isEnabled():
+            self.setCursor(Qt.PointingHandCursor)
+        f = QFont(self.font())
+        f.setPixelSize(12 if kind == "header" else 15)
+        if kind == "header":
+            f.setBold(True)
+        self.setFont(f)
+        pad = {"item": 76 + (34 if rename else 0), "action": 96}.get(kind, 60)
+        self.setMinimumWidth(min(420, QFontMetrics(f).horizontalAdvance(text) + pad))
+
+    def enterEvent(self, e) -> None:
+        self._hover = True
+        self.update()
+
+    def leaveEvent(self, e) -> None:
+        self._hover = False
+        self.update()
+
+    def mouseReleaseEvent(self, e) -> None:
+        if self.isEnabled() and e.button() == Qt.LeftButton:
+            if self._rename and e.position().x() >= self.width() - 40:
+                self.renameClicked.emit()      # clic sur le crayon
+            else:
+                self.clicked.emit()
+
+    def contextMenuEvent(self, e) -> None:
+        if self._rename and self.isEnabled():
+            self.renameClicked.emit()          # clic droit : renommer
+
+    def paintEvent(self, e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        if self._hover and self.isEnabled():
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor("#363737"))
+            p.drawRoundedRect(QRectF(self.rect()), 9, 9)
+        x = 14
+        if self._kind == "header":
+            p.setPen(QColor(theme.TEXT_MUTE))
+        elif self._kind == "action":
+            p.setPen(QColor(theme.TEXT_DIM if self.isEnabled() else theme.TEXT_MUTE))
+            if self._icon:
+                pm = icon_pixmap(self._icon, theme.TEXT_DIM, 17, self.devicePixelRatioF())
+                p.drawPixmap(x, (self.height() - 17) // 2, pm)
+                x += 27
+        else:
+            p.setPen(QColor(theme.TEXT if self.isEnabled() else theme.TEXT_MUTE))
+        fm = p.fontMetrics()
+        txt = fm.elidedText(self._text, Qt.ElideMiddle, self.width() - x - 44 - (34 if self._rename else 0))
+        p.drawText(x, 0, self.width() - x, self.height(), Qt.AlignVCenter | Qt.AlignLeft, txt)
+        shift = 34 if self._rename else 0
+        if self._checked:
+            pm = icon_pixmap("check", theme.TEXT, 18, self.devicePixelRatioF())
+            p.drawPixmap(self.width() - 14 - 18 - shift, (self.height() - 18) // 2, pm)
+        if self._rename and self._hover:
+            pm = icon_pixmap("pencil", theme.TEXT_DIM, 16, self.devicePixelRatioF())
+            p.drawPixmap(self.width() - 12 - 16, (self.height() - 16) // 2, pm)
+
+
+class ModelPopup(QWidget):
+    """Choix du modèle : Ollama, NVIDIA (si clé) et gestion de la clé API NVIDIA."""
+    chosen = Signal(str)
+    addKey = Signal()
+    removeKey = Signal()
+    renameRequested = Signal(str)
+
+    MAX_LIST_H = 360
+
+    def __init__(self, ollama, nvidia, current, note, has_key, parent=None, names=None):
+        super().__init__(parent, Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
+        self._names = names or {}
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        body = QFrame(objectName="ModelPopupBody")
+        outer.addWidget(body)
+        v = QVBoxLayout(body)
+        v.setContentsMargins(6, 6, 6, 6)
+        v.setSpacing(0)
+
+        self._rows = []        # (ligne, texte filtrable)
+        self._sections = []    # (titre, lignes)
+        self.search = None
+        if len(ollama) + len(nvidia) > 8:
+            self.search = QLineEdit(objectName="ModelSearch")
+            self.search.setPlaceholderText("Rechercher un modèle")
+            self.search.textChanged.connect(self._filter)
+            v.addWidget(self.search)
+            v.addSpacing(4)
+
+        content = QWidget(objectName="ModelContent")
+        cl = QVBoxLayout(content)
+        cl.setContentsMargins(0, 0, 0, 0)
+        cl.setSpacing(0)
+        if note:
+            cl.addWidget(_ModelRow(note, enabled=False))
+        both = bool(ollama) and has_key
+        self._add_section(cl, "Ollama" if both else "", ollama, current, "")
+        if has_key:
+            if nvidia:
+                self._add_section(cl, "NVIDIA", nvidia, current, NVIDIA_PREFIX)
+            else:
+                cl.addWidget(_ModelRow("NVIDIA : aucun modèle chargé", enabled=False))
+        scroll = QScrollArea(objectName="ModelScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidget(content)
+        h = content.sizeHint().height()
+        scroll.setFixedHeight(min(h, self.MAX_LIST_H))
+        scroll.setMinimumWidth(max(240, content.sizeHint().width() + (12 if h > self.MAX_LIST_H else 0)))
+        v.addWidget(scroll)
+
+        line = QFrame(objectName="ModelLine")
+        line.setFixedHeight(1)
+        v.addSpacing(4)
+        v.addWidget(line)
+        v.addSpacing(4)
+        if has_key:
+            for text, icon, sig in (("Modifier la clé API NVIDIA", "key", self.addKey),
+                                    ("Supprimer la clé API NVIDIA", "trash", self.removeKey)):
+                r = _ModelRow(text, kind="action", icon=icon)
+                r.clicked.connect(lambda s=sig: (s.emit(), self.close()))
+                v.addWidget(r)
+        else:
+            r = _ModelRow("Ajouter une clé API NVIDIA", kind="action", icon="key")
+            r.clicked.connect(lambda: (self.addKey.emit(), self.close()))
+            v.addWidget(r)
+
+    def _add_section(self, layout, title, names, current, prefix):
+        if not names:
+            return
+        header = _ModelRow(title, kind="header") if title else None
+        if header:
+            layout.addWidget(header)
+        rows = []
+        for n in names:
+            full = prefix + n
+            shown = self._names.get(full, n)
+            r = _ModelRow(shown, checked=(full == current), rename=True,
+                          tip=(f"{n}\nClic droit ou crayon : renommer" if shown != n else "Clic droit ou crayon : renommer"))
+            r.clicked.connect(lambda f=full: (self.chosen.emit(f), self.close()))
+            r.renameClicked.connect(lambda f=full: (self.renameRequested.emit(f), self.close()))
+            layout.addWidget(r)
+            rows.append(r)
+            self._rows.append((r, f"{n} {shown}".lower()))
+        if header:
+            self._sections.append((header, rows))
+
+    def _filter(self, text):
+        q = text.strip().lower()
+        for r, name in self._rows:
+            r.setVisible(q in name)
+        for header, rows in self._sections:
+            header.setVisible(any(r.isVisible() for r in rows))

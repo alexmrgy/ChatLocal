@@ -1,0 +1,17 @@
+"""Palette mesurée sur la capture de ChatGPT (thème sombre)."""
+BG_WINDOW = "#1e2022"
+BG_PANEL = "#181818"
+BG_ELEV = "#363636"      # barre de saisie
+BG_CHIP = "#2d2d2d"
+BG_HOVER = "#2b2c2e"
+BG_ACTIVE = "#303233"
+BG_UPGRADE = "#22345f"
+UPGRADE_TEXT = "#c9d6ff"
+ACCENT = "#4867be"
+ACCENT_HOVER = "#5877d0"
+TEXT = "#ececec"
+TEXT_DIM = "#b4b4b4"
+TEXT_MUTE = "#8e8e8e"
+BORDER = "#303030"
+ERROR = "#f08080"
+SUCCESS = "#4ade80"   # vert « copié »
