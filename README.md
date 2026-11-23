@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo_512.png" alt="Logo ChatLocal" width="120">
+<img src="assets/logo_512.png?v=1795435300" alt="Logo ChatLocal" width="120">
 
 <h1>ChatLocal</h1>
 

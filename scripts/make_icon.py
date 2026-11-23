@@ -6,6 +6,8 @@ avec un « C » blanc épais au centre.
 Usage : python scripts/make_icon.py
 """
 import os
+import re
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,5 +57,11 @@ small = img.scaled(256, 256, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 ok = small.save(str(assets / "app.ico"), "ICO")
 small.save(str(assets / "logo.png"), "PNG")
 img.scaled(512, 512, Qt.IgnoreAspectRatio, Qt.SmoothTransformation).save(str(assets / "logo_512.png"), "PNG")
+# change le paramètre ?v= du logo dans le README : GitHub et le navigateur rechargent la nouvelle image
+readme = ROOT / "README.md"
+if readme.exists():
+    text = readme.read_text(encoding="utf-8")
+    readme.write_text(re.sub(r"assets/logo_512\.png(\?v=\d+)?", f"assets/logo_512.png?v={int(time.time())}", text),
+                      encoding="utf-8")
 print("Logo enregistré :" if ok else "Échec :", assets / "app.ico")
 os._exit(0 if ok else 1)
