@@ -108,6 +108,12 @@ check("retour accueil décoche le bouton", not win.sidebar.compare.isChecked())
 win.sidebar.compare.click()
 pump(200)
 
+# changer de modèle après une comparaison : le titre suit et la colonne est remise à zéro
+c.combo_b.setCurrentIndex(0)
+check("changer de modèle B met à jour sa colonne", c.side_b.title.text() == c.combo_b.currentText() and c.side_b.msg is None)
+check("la réponse de A est conservée", c.side_a.msg is not None)
+c.combo_b.setCurrentIndex(1)
+
 # arrêt en cours de route
 c.edit.setPlainText("Encore")
 c.run()

@@ -164,17 +164,15 @@ class ComparePage(QWidget):
         v.addLayout(wrap)
 
         self.timer = QTimer(self, interval=60, timeout=self._tick)
-        self.combo_a.currentIndexChanged.connect(self._sync_titles)
-        self.combo_b.currentIndexChanged.connect(self._sync_titles)
-        self._sync_titles()
+        self.combo_a.currentIndexChanged.connect(lambda _: self._sync_title(self.side_a, self.combo_a, "Modèle A"))
+        self.combo_b.currentIndexChanged.connect(lambda _: self._sync_title(self.side_b, self.combo_b, "Modèle B"))
+        self._sync_title(self.side_a, self.combo_a, "Modèle A")
+        self._sync_title(self.side_b, self.combo_b, "Modèle B")
 
-    def _sync_titles(self) -> None:
-        """Les titres suivent les modèles choisis tant qu'aucune comparaison n'est en cours."""
-        if self.busy():
-            return
-        for side, combo, default in ((self.side_a, self.combo_a, "Modèle A"), (self.side_b, self.combo_b, "Modèle B")):
-            if side.msg is None:
-                side.idle(combo.currentText() or default)
+    def _sync_title(self, side: _Side, combo: QComboBox, default: str) -> None:
+        """Changer de modèle remet sa colonne à zéro (l'ancienne réponse venait d'un autre modèle)."""
+        if not self.busy():
+            side.idle(combo.currentText() or default)
 
     # ----- modèles -----
     def set_models(self, models: list[tuple[str, str]], prefer: str = "") -> None:
@@ -185,14 +183,18 @@ class ComparePage(QWidget):
             c.clear()
             for full, label in models:
                 c.addItem(label, full)
-            c.blockSignals(False)
         ids = [m[0] for m in models]
         a = keep[0] if keep[0] in ids else (prefer if prefer in ids else (ids[0] if ids else None))
         b = keep[1] if keep[1] in ids and keep[1] != a else next((i for i in ids if i != a), a)
         for c, want in ((self.combo_a, a), (self.combo_b, b)):
             if want is not None:
                 c.setCurrentIndex(ids.index(want))
-        self._sync_titles()
+        for c in (self.combo_a, self.combo_b):
+            c.blockSignals(False)
+        if keep[0] != self.combo_a.currentData():      # un modèle inchangé garde sa réponse
+            self._sync_title(self.side_a, self.combo_a, "Modèle A")
+        if keep[1] != self.combo_b.currentData():
+            self._sync_title(self.side_b, self.combo_b, "Modèle B")
 
     # ----- exécution -----
     def busy(self) -> bool:
