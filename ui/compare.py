@@ -37,15 +37,30 @@ class _Side(QFrame):
         self.scroll.setWidget(self.body)
         v.addWidget(self.scroll, 1)
         self.msg: AssistantMessage | None = None
+        self.hint = QLabel("La réponse apparaîtra ici.", objectName="CompareStats")
+        self.hint.setAlignment(Qt.AlignCenter)
+        self.body_lay.insertWidget(0, self.hint)
         self.buffer = ""
         self.dirty = False
         self.t0 = 0.0
         self.first = 0.0
         self.worker: ChatWorker | None = None
 
+    def idle(self, label: str) -> None:
+        """État de repos : aucun indicateur de réflexion tant qu'aucune question n'est posée."""
+        self.title.setText(label)
+        self.stats.setText("")
+        if self.msg is not None:
+            self.body_lay.removeWidget(self.msg)
+            self.msg.hide()
+            self.msg.deleteLater()
+            self.msg = None
+        self.hint.show()
+
     def reset(self, label: str) -> None:
         self.title.setText(label)
         self.stats.setText("En attente…")
+        self.hint.hide()
         if self.msg is not None:
             self.body_lay.removeWidget(self.msg)
             self.msg.hide()
@@ -149,10 +164,17 @@ class ComparePage(QWidget):
         v.addLayout(wrap)
 
         self.timer = QTimer(self, interval=60, timeout=self._tick)
-        self.side_a.reset("Modèle A")
-        self.side_b.reset("Modèle B")
-        self.side_a.stats.setText("")
-        self.side_b.stats.setText("")
+        self.combo_a.currentIndexChanged.connect(self._sync_titles)
+        self.combo_b.currentIndexChanged.connect(self._sync_titles)
+        self._sync_titles()
+
+    def _sync_titles(self) -> None:
+        """Les titres suivent les modèles choisis tant qu'aucune comparaison n'est en cours."""
+        if self.busy():
+            return
+        for side, combo, default in ((self.side_a, self.combo_a, "Modèle A"), (self.side_b, self.combo_b, "Modèle B")):
+            if side.msg is None:
+                side.idle(combo.currentText() or default)
 
     # ----- modèles -----
     def set_models(self, models: list[tuple[str, str]], prefer: str = "") -> None:
@@ -170,6 +192,7 @@ class ComparePage(QWidget):
         for c, want in ((self.combo_a, a), (self.combo_b, b)):
             if want is not None:
                 c.setCurrentIndex(ids.index(want))
+        self._sync_titles()
 
     # ----- exécution -----
     def busy(self) -> bool:

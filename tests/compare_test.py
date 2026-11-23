@@ -76,6 +76,10 @@ check("bouton de la sidebar coché", win.sidebar.compare.isChecked())
 check("page de comparaison affichée", win.stack.currentIndex() == mw.COMPARE)
 check("deux modèles différents présélectionnés", c.combo_a.currentData() != c.combo_b.currentData() and c.combo_a.count() == 2)
 
+win.grab().save(str(OUT / "shot_compare_idle.png"))
+check("aucune réflexion avant la question", c.side_a.msg is None and c.side_b.msg is None)
+check("titres = modèles choisis", c.side_a.title.text() == c.combo_a.currentText() and c.side_b.title.text() == c.combo_b.currentText())
+
 # même modèle des deux côtés : refusé
 msgs = []
 c.message.connect(msgs.append)
