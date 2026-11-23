@@ -627,7 +627,8 @@ class MainWindow(QWidget):
     def _reload_history(self) -> None:
         folders, convs = self.db.list_folders(), self.db.list_conversations()
         self.history_panel.set_data(folders, convs, self.cid)
-        self.manager.set_data(convs, folders)
+        if self.stack.currentIndex() == MANAGER:        # la page « Toutes les discussions » se remplit à l'ouverture
+            self.manager.set_data(convs, folders)
         self._refresh_topbar()
 
     def _refresh_topbar(self) -> None:
@@ -791,16 +792,19 @@ class MainWindow(QWidget):
         self.chat.clear()
         self.history = []
         self.hist_ids = []
-        for m in self.db.get_path(cid):
-            idx = len(self.history)
+        path = self.db.get_path(cid)
+        for m in path:
             self.history.append({"role": m["role"], "content": m["content"], "quote": m["quote"],
                                  "files": m["files"]})
             self.hist_ids.append(m["id"])
-            if m["role"] == "user":
-                self.chat.add_user(m["content"], idx, m["ver"], m["total"], fade=False, quote=m["quote"],
-                                   files=m["files"])
-            else:
-                self.chat.add_assistant(m["content"], idx, fade=False)
+        # ouverture instantanée : seuls les derniers messages sont construits tout de suite, les plus anciens
+        # arrivent ensuite par petits lots (sans faire bouger l'écran)
+        tok = self.chat.gen            # change à chaque chat.clear() : invalide les lots en attente
+        first = max(0, len(path) - self.FIRST_BATCH)
+        for idx in range(first, len(path)):
+            self._build_message(path[idx], idx)
+        if first:
+            QTimer.singleShot(0, lambda: self._load_older(tok, path, first))
         if row["model"] and row["model"] in self.models:
             self.input.set_model(row["model"])
         self.history_panel.select(cid)
@@ -808,6 +812,27 @@ class MainWindow(QWidget):
         if push:
             self._push_nav(cid)
         self._place_input(CHAT)
+
+    FIRST_BATCH, OLDER_BATCH = 14, 8       # messages construits d'un coup / par lot pour l'historique ancien
+
+    def _build_message(self, m: dict, idx: int) -> None:
+        if m["role"] == "user":
+            self.chat.add_user(m["content"], idx, m["ver"], m["total"], fade=False, quote=m["quote"],
+                               files=m["files"])
+        else:
+            self.chat.add_assistant(m["content"], idx, fade=False)
+
+    def _load_older(self, token: int, path: list, end: int) -> None:
+        """Ajoute, par lots et du plus récent au plus ancien, les messages au-dessus de ceux déjà affichés."""
+        if token != self.chat.gen:      # autre conversation ouverte entre-temps
+            return
+        start = max(0, end - self.OLDER_BATCH)
+        self.chat.begin_prepend()
+        for idx in range(end - 1, start - 1, -1):
+            self._build_message(path[idx], idx)
+        self.chat.end_prepend()
+        if start:
+            QTimer.singleShot(0, lambda: self._load_older(token, path, start))
 
     def show_manager(self) -> None:
         """Page « Toutes les discussions » (liste, sélection multiple, actions groupées)."""

@@ -28,7 +28,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795433420" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795434028" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -66,8 +66,12 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 2. Double-clique dessus : rien à installer.
 3. Installe [Ollama](https://ollama.com) si ce n'est pas déjà fait, puis `ollama pull gemma3` pour avoir un modèle.
 
-> ℹ️ Windows peut afficher « Windows a protégé votre ordinateur » car l'application n'est pas signée :
-> clique sur **Informations complémentaires** puis **Exécuter quand même**.
+> ⚠️ **Windows bloque le fichier ?** L'application n'est pas signée, donc Windows peut afficher
+> « Une stratégie de contrôle d'application a bloqué ce fichier » ou « Windows a protégé votre ordinateur ».
+> Deux solutions :
+> - **Débloquer le fichier** : clic droit sur `ChatLocal.exe` → **Propriétés** → coche **Débloquer** en bas → **OK**
+>   (ou **Informations complémentaires** → **Exécuter quand même** pour SmartScreen).
+> - **Sans exécutable** : installe Python, puis lance `ChatLocal.pyw` (double-clic), voir la section ci-dessous.
 
 ### 🧑‍💻 Depuis le code source
 
@@ -80,6 +84,8 @@ pip install -r requirements.txt
 ollama pull gemma3
 python main.py
 ```
+
+Tu peux aussi double-cliquer sur `ChatLocal.pyw` : même application, sans fenêtre de console.
 
 > 💡 `gemma3` n'est qu'un exemple : n'importe quel modèle Ollama fonctionne.
 
@@ -125,6 +131,7 @@ et Python doit être installé si tu veux lancer du code Python depuis le termin
 ```text
 ChatLocal/
 ├── main.py            point d'entrée
+├── ChatLocal.pyw      lanceur par double-clic (sans console, sans .exe)
 ├── attachments.py     lecture et limites des fichiers joints
 ├── system_prompt.py   consignes envoyées aux modèles (français, emojis, heure du PC)
 ├── ui/                interface PySide6 (fenêtre, chat, sidebar, éditeur, terminal…)

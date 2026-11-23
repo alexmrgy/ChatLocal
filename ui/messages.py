@@ -715,6 +715,7 @@ class ChatView(QScrollArea):
         self._update_down()
 
     def clear(self) -> None:
+        self.gen = getattr(self, "gen", 0) + 1
         while self._lay.count() > 1:
             it = self._lay.takeAt(0)
             if it.widget():
@@ -732,7 +733,37 @@ class ChatView(QScrollArea):
             row.deleteLater()
         self._rows = self._rows[:cut]
 
+    def begin_prepend(self) -> None:
+        """Prépare l'ajout de messages plus anciens en tête : on retient la position d'une ligne visible."""
+        self._anchor = None
+        self.setUpdatesEnabled(False)
+        vp = self.viewport()
+        for row, _ in self._rows:
+            y = row.mapTo(vp, QPoint(0, 0)).y()
+            if y + row.height() > 0:
+                self._anchor = (row, y)
+                break
+        self._front = True
+
+    def end_prepend(self) -> None:
+        """Termine l'ajout en tête et recale le défilement pour que rien ne bouge à l'écran."""
+        self._front = False
+        if self._anchor is not None:
+            row, y0 = self._anchor
+            self._lay.activate()
+            y1 = row.mapTo(self.viewport(), QPoint(0, 0)).y()
+            bar = self.verticalScrollBar()
+            self._prog = True
+            bar.setValue(bar.value() + (y1 - y0))
+            self._prog = False
+        self._anchor = None
+        self.setUpdatesEnabled(True)
+
     def _add(self, row: QWidget, index: int, fade: bool = True) -> None:
+        if getattr(self, "_front", False):          # message plus ancien : ajouté tout en haut
+            self._lay.insertWidget(0, row)
+            self._rows.insert(0, (row, index))
+            return
         self._lay.insertWidget(self._lay.count() - 1, row)
         self._rows.append((row, index))
         if fade:

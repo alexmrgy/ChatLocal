@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 
 import markdown
 from pygments import highlight
@@ -125,11 +126,13 @@ def replace_code_segment(text: str, nth: int, new_code: str) -> str | None:
     return None
 
 
+@lru_cache(maxsize=512)
 def md_to_html(text: str) -> str:
     html = markdown.markdown(text, extensions=["tables", "sane_lists", "nl2br"])
     return _TABLE.sub(_restyle_table, html)
 
 
+@lru_cache(maxsize=256)
 def code_to_html(code: str, lang: str) -> str:
     try:
         lexer = get_lexer_by_name(lang) if lang else TextLexer()

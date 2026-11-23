@@ -352,6 +352,8 @@ class HistoryPanel(QWidget):
 
     def set_open(self, on: bool) -> None:
         self._open = on
+        if on and getattr(self, "_stale", False):
+            self._rebuild()
         self._anim.stop()
         if on:
             self.frame.setFixedWidth(self._width)
@@ -454,6 +456,10 @@ class HistoryPanel(QWidget):
         self._rebuild()
 
     def _rebuild(self) -> None:
+        if not self._open and self.maximumWidth() == 0:      # panneau fermé : on reconstruira à l'ouverture
+            self._stale = True
+            return
+        self._stale = False
         vpos = self.scroll.verticalScrollBar().value()
         while self.col.count():
             it = self.col.takeAt(0)
