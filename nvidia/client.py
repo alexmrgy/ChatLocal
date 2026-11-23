@@ -11,6 +11,8 @@ import threading
 from typing import Iterator
 from urllib.parse import urlparse
 
+import clock
+
 BASE_URL = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1").rstrip("/")
 PREFIX = "nvidia:"   # préfixe d'un identifiant de modèle NVIDIA dans l'app
 
@@ -89,7 +91,8 @@ class ChatStream:
                 pass
 
     def run(self) -> Iterator[tuple[str, str]]:
-        body = json.dumps({"model": self.model, "messages": self.messages, "stream": True, "max_tokens": 4096})
+        body = json.dumps({"model": self.model, "messages": clock.with_time(self.messages), "stream": True,
+                           "max_tokens": 4096})
         conn, path = _connect(600)
         self._conn = conn
         try:
