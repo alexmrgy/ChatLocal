@@ -63,8 +63,23 @@ class _Side(QFrame):
         self.hint.show()
 
     def begin_turn(self, question: str) -> None:
-        self.hint.hide()
         self.question = question
+        self._build_turn(question, "En attente…")
+        self.buffer, self.dirty = "", False
+        self.t0, self.first = time.monotonic(), 0.0
+        self._to_end()
+
+    def restore_turn(self, question: str, answer: str, stats: str) -> None:
+        """Remet à l'écran un échange enregistré (conversation rouverte depuis l'historique)."""
+        self._build_turn(question, stats)
+        self.msg.set_text(answer)
+        self.msg.finish()           # retire l'indicateur de réflexion même sans réponse
+        if answer.strip():
+            self.history += [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
+        self.buffer = answer
+
+    def _build_turn(self, question: str, stats: str) -> None:
+        self.hint.hide()
         bubble_row = QWidget()
         h = QHBoxLayout(bubble_row)
         h.setContentsMargins(0, 0, 0, 0)
@@ -77,14 +92,11 @@ class _Side(QFrame):
         bl.addWidget(lab)
         bubble.setMaximumWidth(420)
         h.addWidget(bubble)
-        self.stats = QLabel("En attente…", objectName="CompareStats")
+        self.stats = QLabel(stats, objectName="CompareStats")
         self.msg = AssistantMessage()
         for w in (bubble_row, self.stats, self.msg):
             self.body_lay.insertWidget(self.body_lay.count() - 1, w)
             self.turns.append(w)
-        self.buffer, self.dirty = "", False
-        self.t0, self.first = time.monotonic(), 0.0
-        self._to_end()
 
     def messages(self, question: str) -> list[dict]:
         return self.history + [{"role": "user", "content": question}]
@@ -136,6 +148,7 @@ class _Side(QFrame):
 
 class ComparePage(QWidget):
     message = Signal(str)     # message d'information à afficher (toast)
+    exchangeDone = Signal()   # un échange (question + 2 réponses) est terminé : à enregistrer
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -143,6 +156,8 @@ class ComparePage(QWidget):
         self.stream_factory: Callable[[str, list], object] | None = None
         self._zombies: list[ChatWorker] = []
         self._running = 0
+        self.cid: int | None = None      # conversation enregistrée correspondant à cette comparaison
+        self.saved_turns: list[dict] = []
 
         v = QVBoxLayout(self)
         v.setContentsMargins(24, 14, 24, 18)
@@ -204,6 +219,7 @@ class ComparePage(QWidget):
         """Nouvelle comparaison : on repart d'une conversation vide pour les deux modèles."""
         if self.busy():
             return
+        self.cid, self.saved_turns = None, []
         self.side_a.clear(self.combo_a.currentText() or "Modèle A")
         self.side_b.clear(self.combo_b.currentText() or "Modèle B")
 
@@ -226,6 +242,33 @@ class ComparePage(QWidget):
             c.blockSignals(False)
         if keep != [self.combo_a.currentData(), self.combo_b.currentData()]:   # même choix : la conversation continue
             self.reset_all()
+
+    def snapshot(self) -> dict:
+        """Données à enregistrer dans l'historique."""
+        return {"a": self.combo_a.currentData(), "b": self.combo_b.currentData(), "turns": self.saved_turns}
+
+    def restore(self, cid: int, data: dict, names: dict[str, str]) -> None:
+        """Rouvre une comparaison enregistrée. names : identifiant -> nom affiché (pour les modèles disparus)."""
+        self.cancel()
+        a, b = data.get("a"), data.get("b")
+        for combo, mid in ((self.combo_a, a), (self.combo_b, b)):
+            combo.blockSignals(True)
+            if mid and combo.findData(mid) < 0:
+                combo.addItem(names.get(mid, mid), mid)
+            if mid:
+                combo.setCurrentIndex(combo.findData(mid))
+            combo.blockSignals(False)
+        self.side_a.clear(self.combo_a.currentText() or "Modèle A")
+        self.side_b.clear(self.combo_b.currentText() or "Modèle B")
+        self.saved_turns = []
+        for t in data.get("turns", []):
+            q = str(t.get("q", ""))
+            self.side_a.restore_turn(q, str(t.get("a", "")), str(t.get("sa", "")))
+            self.side_b.restore_turn(q, str(t.get("b", "")), str(t.get("sb", "")))
+            self.saved_turns.append(t)
+        self.cid = cid
+        self.side_a._to_end()
+        self.side_b._to_end()
 
     # ----- exécution -----
     def busy(self) -> bool:
@@ -279,6 +322,11 @@ class ComparePage(QWidget):
             w.finished.connect(w.deleteLater)
         if not self._running:
             self._set_busy(False)
+            a, b = self.side_a, self.side_b
+            if a.buffer.strip() or b.buffer.strip():
+                self.saved_turns.append({"q": a.question, "a": a.buffer, "b": b.buffer,
+                                         "sa": a.stats.text(), "sb": b.stats.text()})
+                self.exchangeDone.emit()
 
     def _set_busy(self, on: bool) -> None:
         self.combo_a.setEnabled(not on)

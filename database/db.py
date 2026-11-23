@@ -64,6 +64,8 @@ class Database:
             self.db.execute("ALTER TABLE conversations ADD COLUMN tag TEXT")
         if "root_selected" not in cols:
             self.db.execute("ALTER TABLE conversations ADD COLUMN root_selected INTEGER")
+        if "compare" not in cols:       # comparaison de deux modèles (JSON) : NULL pour une conversation normale
+            self.db.execute("ALTER TABLE conversations ADD COLUMN compare TEXT")
         mcols = [r["name"] for r in self.db.execute("PRAGMA table_info(messages)")]
         if "quote" not in mcols:
             self.db.execute("ALTER TABLE messages ADD COLUMN quote TEXT")
@@ -122,6 +124,20 @@ class Database:
         )
         self.db.commit()
         return cur.lastrowid
+
+    def set_compare(self, cid: int, data: dict) -> None:
+        """Enregistre (ou met à jour) les données d'une comparaison de deux modèles."""
+        self.db.execute("UPDATE conversations SET compare=?, updated_at=? WHERE id=?",
+                        (json.dumps(data, ensure_ascii=False), time.time(), cid))
+        self.db.commit()
+
+    @staticmethod
+    def compare_data(row) -> dict | None:
+        try:
+            data = json.loads(row["compare"]) if row["compare"] else None
+        except (ValueError, KeyError):
+            return None
+        return data if isinstance(data, dict) else None
 
     def list_conversations(self) -> list[sqlite3.Row]:
         return self.db.execute("SELECT * FROM conversations ORDER BY updated_at DESC, id DESC").fetchall()

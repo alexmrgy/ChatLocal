@@ -226,6 +226,7 @@ class MainWindow(QWidget):
         self.compare = ComparePage()
         self.compare.stream_factory = self._compare_stream
         self.compare.message.connect(lambda msg: self.toast.show_message(msg, 3500))
+        self.compare.exchangeDone.connect(self._save_compare)
         self.stack.addWidget(self.compare)
 
         self.input = InputBar()
@@ -458,12 +459,49 @@ class MainWindow(QWidget):
             raise ValueError(f"Ollama est injoignable sur {client.BASE_URL}. Lance Ollama puis réessaie.")
         return client.ChatStream(model, msgs)
 
+    def _model_names(self) -> dict[str, str]:
+        return {m: self.input.display_name(m) for m in self._all_models()}
+
+    def _save_compare(self) -> None:
+        """Enregistre la comparaison dans l'historique des conversations (créée au premier échange)."""
+        c = self.compare
+        if not c.saved_turns:
+            return
+        data = c.snapshot()
+        if c.cid is None or not self.db.get_conversation(c.cid):
+            title = " ".join(c.saved_turns[0]["q"].split())
+            title = "Comparaison : " + title[:40] + ("…" if len(title) > 40 else "")
+            c.cid = self.db.create_conversation(title, data["a"])
+            self._push_nav(c.cid)
+        self.db.set_compare(c.cid, data)
+        self.cid = c.cid
+        self._reload_history()
+        self.history_panel.select(c.cid)
+
+    def _open_saved_compare(self, row, push: bool) -> None:
+        """Rouvre une comparaison enregistrée depuis l'historique."""
+        self._abort_generation()
+        self._set_ephemeral(False)
+        self.compare.set_models([(m, n) for m, n in self._model_names().items()], prefer=self.input.model())
+        self.compare.restore(row["id"], self.db.compare_data(row) or {}, self._model_names())
+        self.cid = row["id"]
+        self.stack.setCurrentIndex(COMPARE)
+        self.sidebar.set_home_checked(False)
+        self.sidebar.set_manager_checked(False)
+        self.sidebar.set_compare_checked(True)
+        if push:
+            self._push_nav(row["id"])
+        self.history_panel.select(row["id"])
+        self._refresh_topbar()
+        self.compare.edit.setFocus()
+
     def show_compare(self) -> None:
         """Page « Comparer deux modèles » : même question, deux réponses côte à côte."""
         self._abort_generation()
         self._set_ephemeral(False)
         models = [(m, self.input.display_name(m)) for m in self._all_models()]
         self.compare.set_models(models, prefer=self.input.model())
+        self.cid = self.compare.cid
         self.stack.setCurrentIndex(COMPARE)
         self.sidebar.set_home_checked(False)
         self.sidebar.set_manager_checked(False)
@@ -736,6 +774,11 @@ class MainWindow(QWidget):
     def open_conversation(self, cid: int, push: bool = True, force: bool = False) -> None:
         row = self.db.get_conversation(cid)
         if not row:
+            return
+        if row["compare"]:
+            if cid == self.cid and self.stack.currentIndex() == COMPARE and not force:
+                return
+            self._open_saved_compare(row, push)
             return
         if cid == self.cid and self.stack.currentIndex() == CHAT and not force:
             return
@@ -1054,6 +1097,14 @@ class MainWindow(QWidget):
     def _conversation_markdown(self, cid: int) -> str:
         row = self.db.get_conversation(cid)
         parts = [f"# {row['title']}", ""]
+        cmp = self.db.compare_data(row)
+        if cmp:
+            names = self._model_names()
+            for t in cmp.get("turns", []):
+                parts += ["### Vous", "", t.get("q", ""), ""]
+                for key, mid in (("a", cmp.get("a")), ("b", cmp.get("b"))):
+                    parts += [f"#### {names.get(mid, mid)}", "", t.get(key, ""), ""]
+            return "\n".join(parts)
         for m in self.db.get_messages(cid):
             parts += ["### " + ("Vous" if m["role"] == "user" else "Assistant"), ""]
             if m["quote"]:
