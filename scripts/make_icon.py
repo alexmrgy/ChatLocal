@@ -7,13 +7,14 @@ Usage : python scripts/make_icon.py
 """
 import os
 import re
+import struct
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QPointF, QRectF, Qt  # noqa: E402
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter, QPainterPath, QPen  # noqa: E402
 
 ORANGE = QColor("#D97757")
@@ -54,7 +55,28 @@ p.end()
 
 assets = ROOT / "assets"
 small = img.scaled(256, 256, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-ok = small.save(str(assets / "app.ico"), "ICO")
+
+
+def write_ico(path: Path, sizes=(16, 24, 32, 48, 64, 128, 256)) -> bool:
+    """Icône Windows multi-tailles (PNG intégrés) : nette dans la barre des tâches, l'Explorateur, etc."""
+    entries = []
+    for n in sizes:
+        png = QByteArray()
+        buf = QBuffer(png)
+        buf.open(QIODevice.WriteOnly)
+        img.scaled(n, n, Qt.IgnoreAspectRatio, Qt.SmoothTransformation).save(buf, "PNG")
+        entries.append((n, bytes(png)))
+    head = struct.pack("<HHH", 0, 1, len(entries))
+    offset = 6 + 16 * len(entries)
+    directory, data = b"", b""
+    for n, png in entries:
+        directory += struct.pack("<BBBBHHII", n % 256, n % 256, 0, 0, 1, 32, len(png), offset + len(data))
+        data += png
+    path.write_bytes(head + directory + data)
+    return True
+
+
+ok = write_ico(assets / "app.ico")
 small.save(str(assets / "logo.png"), "PNG")
 img.scaled(512, 512, Qt.IgnoreAspectRatio, Qt.SmoothTransformation).save(str(assets / "logo_512.png"), "PNG")
 # change le paramètre ?v= du logo dans le README : GitHub et le navigateur rechargent la nouvelle image
