@@ -132,6 +132,7 @@ class MainWindow(QWidget):
         hp = self.history_panel = HistoryPanel()
         hp.newChat.connect(self.new_chat)
         hp.openConversation.connect(self.open_conversation)
+        hp.bulkMoveRequested.connect(self.bulk_move)
         hp.bulkDeleteRequested.connect(self.bulk_delete)
         hp.bulkArchiveRequested.connect(self._bulk_archive_from_panel)
         hp.renameConversation.connect(self.rename_conversation)

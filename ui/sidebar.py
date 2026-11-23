@@ -1,9 +1,10 @@
 """Barre latérale d'icônes (52 px) + panneau Dossiers / Récents."""
 from __future__ import annotations
 
-from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,
+from PySide6.QtCore import (QEasingCurve, QEvent, QMimeData, QPoint, QPropertyAnimation, QRect, QRectF, Qt,
+                            QTimer, Signal)
+from PySide6.QtGui import QColor, QCursor, QDrag, QFont, QFontMetrics, QPainter
+from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,
                                QScrollArea, QVBoxLayout, QWidget)
 
 from . import theme
@@ -12,6 +13,20 @@ from .titlebar import make_menu
 from .widgets import IconButton
 
 SIDEBAR_W = 52
+MIME_CONV = "application/x-chatlocal-conversations"      # glisser-déposer : ids des conversations (« 3,7,12 »)
+
+
+def conv_mime(ids: list[int]) -> QMimeData:
+    m = QMimeData()
+    m.setData(MIME_CONV, ",".join(str(i) for i in ids).encode("ascii"))
+    return m
+
+
+def mime_ids(mime) -> list[int]:
+    if not mime.hasFormat(MIME_CONV):
+        return []
+    raw = bytes(mime.data(MIME_CONV)).decode("ascii", "ignore")
+    return [int(x) for x in raw.split(",") if x.strip().isdigit()]
 
 
 class Sidebar(QWidget):
@@ -76,6 +91,7 @@ class NavRow(QWidget):
     context = Signal(QPoint)
     pinClicked = Signal()
     menuClicked = Signal(QPoint)
+    dropped = Signal(list)           # ids de conversations déposées sur cette ligne
 
     def __init__(self, text: str, icon: str | None = None, indent: int = 0, selected: bool = False,
                  actions: bool = False, pinned: bool = False, tag: str | None = None, icon_color: str | None = None,
@@ -85,6 +101,10 @@ class NavRow(QWidget):
         self._actions, self._pinned, self._tag = actions, pinned, tag
         self._icon_color = icon_color
         self._checked = checked          # sélection multiple (Ctrl / Maj + clic)
+        self.drag_ids = None             # fonction -> ids à glisser (None : cette ligne ne se glisse pas)
+        self._press = None
+        self._dragging = False
+        self._drop_hover = False
         self.last_mods = Qt.NoModifier   # touches maintenues lors du dernier clic
         self._hover = False
         self._hover_btn = None   # "pin" | "menu" | None
@@ -110,7 +130,33 @@ class NavRow(QWidget):
         self._hover, self._hover_btn = False, None
         self.update()
 
+    def mousePressEvent(self, e) -> None:
+        self._press = e.position().toPoint() if e.button() == Qt.LeftButton else None
+        self._dragging = False
+
+    def make_drag(self) -> QDrag | None:
+        ids = self.drag_ids() if self.drag_ids else []
+        if not ids:
+            return None
+        drag = QDrag(self)
+        drag.setMimeData(conv_mime(ids))
+        pm = self.grab()
+        drag.setPixmap(pm)
+        drag.setHotSpot(self._press or QPoint(20, 17))
+        return drag
+
     def mouseMoveEvent(self, e) -> None:
+        if (self._press is not None and self.drag_ids and e.buttons() & Qt.LeftButton
+                and (e.position().toPoint() - self._press).manhattanLength() >= QApplication.startDragDistance()):
+            drag = self.make_drag()
+            self._press = None
+            if drag is not None:
+                self._dragging = True
+                self._hover = False
+                self.update()
+                drag.exec(Qt.MoveAction)
+                self._dragging = False
+                return
         if self._actions:
             pin, menu = self._btn_rects()
             pos = e.position().toPoint()
@@ -120,8 +166,10 @@ class NavRow(QWidget):
                 self.update()
 
     def mouseReleaseEvent(self, e) -> None:
-        if e.button() != Qt.LeftButton:
+        if e.button() != Qt.LeftButton or self._dragging:
+            self._press = None
             return
+        self._press = None
         pos = e.position().toPoint()
         if not self.rect().contains(pos):
             return
@@ -139,10 +187,37 @@ class NavRow(QWidget):
     def contextMenuEvent(self, e) -> None:
         self.context.emit(e.globalPos())
 
+    # ----- cible de dépôt -----
+    def dragEnterEvent(self, e) -> None:
+        if mime_ids(e.mimeData()):
+            e.acceptProposedAction()
+            self._drop_hover = True
+            self.update()
+
+    def dragMoveEvent(self, e) -> None:
+        if mime_ids(e.mimeData()):
+            e.acceptProposedAction()
+
+    def dragLeaveEvent(self, e) -> None:
+        self._drop_hover = False
+        self.update()
+
+    def dropEvent(self, e) -> None:
+        self._drop_hover = False
+        self.update()
+        ids = mime_ids(e.mimeData())
+        if ids:
+            e.acceptProposedAction()
+            self.dropped.emit(ids)
+
     def paintEvent(self, e) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        if self._checked or self._selected or self._hover:
+        if self._drop_hover:                       # cible de dépôt : contour bleu
+            p.setPen(QColor("#5b8cff"))
+            p.setBrush(QColor(91, 140, 255, 45))
+            p.drawRoundedRect(QRectF(self.rect()).adjusted(1, 1, -1, -1), 10, 10)
+        elif self._checked or self._selected or self._hover:
             p.setPen(Qt.NoPen)
             p.setBrush(QColor("#2f4a86" if self._checked else "#2d2d2e" if self._selected else "#252627"))
             p.drawRoundedRect(QRectF(self.rect()), 10, 10)
@@ -172,6 +247,31 @@ class NavRow(QWidget):
                 color = "#8fb0ff" if (name == "pin" and self._pinned) else theme.TEXT_DIM
                 pm = icon_pixmap(icon, color, 17, self.devicePixelRatioF())
                 p.drawPixmap(rect.left() + (rect.width() - 17) // 2, rect.top() + (rect.height() - 17) // 2, pm)
+
+
+class _DropContent(QWidget):
+    """Fond de la liste : y déposer des conversations les sort de leur dossier."""
+    dropped = Signal(list)
+    hovering = Signal(QPoint)
+
+    def __init__(self, parent=None, **kw):
+        super().__init__(parent, **kw)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, e) -> None:
+        if mime_ids(e.mimeData()):
+            e.acceptProposedAction()
+
+    def dragMoveEvent(self, e) -> None:
+        if mime_ids(e.mimeData()):
+            e.acceptProposedAction()
+            self.hovering.emit(self.mapToGlobal(e.position().toPoint()))
+
+    def dropEvent(self, e) -> None:
+        ids = mime_ids(e.mimeData())
+        if ids:
+            e.acceptProposedAction()
+            self.dropped.emit(ids)
 
 
 class SectionHeader(QWidget):
@@ -254,6 +354,7 @@ class HistoryPanel(QWidget):
     folderMenuRequested = Signal(int, QPoint)
     bulkDeleteRequested = Signal(list)      # ids des conversations sélectionnées
     bulkArchiveRequested = Signal(list, bool)
+    bulkMoveRequested = Signal(list, int)   # (ids, dossier ; 0 = aucun) : glisser-déposer
     widthChanged = Signal(int)     # largeur choisie à la souris (à mémoriser)
     openChanged = Signal(bool)     # ouvert / fermé (aussi par glissement)
 
@@ -302,7 +403,9 @@ class HistoryPanel(QWidget):
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.content = QWidget(objectName="HistoryContent")
+        self.content = _DropContent(objectName="HistoryContent")
+        self.content.dropped.connect(lambda ids: self._drop_ids(ids, 0))
+        self.content.hovering.connect(self._autoscroll)
         self.col = QVBoxLayout(self.content)
         self.col.setContentsMargins(0, 0, 4, 0)
         self.col.setSpacing(1)
@@ -489,6 +592,8 @@ class HistoryPanel(QWidget):
             row = NavRow(f["name"], "folder_open" if expanded else "folder", icon_color=TAG_COLORS.get(f["color"]))
             row.clicked.connect(lambda fid=fid: self.toggleFolder.emit(fid))
             row.context.connect(lambda pos, fid=fid: self._folder_menu(fid, pos))
+            row.setAcceptDrops(True)
+            row.dropped.connect(lambda ids, fid=fid: self._drop_ids(ids, fid))
             self.col.addWidget(row)
             if expanded:
                 kids = by_folder.get(fid, [])
@@ -523,6 +628,25 @@ class HistoryPanel(QWidget):
         if n:
             self.setFocus()
 
+    def _drop_ids(self, ids: list, fid: int) -> None:
+        """Conversations déposées sur un dossier (fid) ou hors de tout dossier (0)."""
+        self.drop_selection()
+        self.bulkMoveRequested.emit(ids, fid)
+
+    def _drag_ids(self, cid: int) -> list[int]:
+        """Conversations emportées par le glisser : toute la sélection si la ligne en fait partie."""
+        return self.selected_ids() if cid in self._sel else [cid]
+
+    def _autoscroll(self, global_pos: QPoint) -> None:
+        """Fait défiler la liste quand on glisse près du bord haut ou bas."""
+        vp = self.scroll.viewport()
+        y = vp.mapFromGlobal(global_pos).y()
+        bar = self.scroll.verticalScrollBar()
+        if y < 30:
+            bar.setValue(bar.value() - 24)
+        elif y > vp.height() - 30:
+            bar.setValue(bar.value() + 24)
+
     def _toggle_archived(self) -> None:
         self._show_archived = not self._show_archived
         self._rebuild()
@@ -541,6 +665,10 @@ class HistoryPanel(QWidget):
         row.context.connect(lambda pos, cid=cid: self._conv_menu(cid, pos))
         row.menuClicked.connect(lambda pos, cid=cid: self._conv_menu(cid, pos))
         row.pinClicked.connect(lambda cid=cid: self.pinRequested.emit(cid))
+        row.drag_ids = lambda cid=cid: self._drag_ids(cid)       # la ligne se glisse vers un dossier
+        row.setAcceptDrops(True)                                 # et sert de cible : même dossier que cette ligne
+        target = 0 if c["pinned"] else int(c["folder_id"] or 0)
+        row.dropped.connect(lambda ids, t=target: self._drop_ids(ids, t))
         return row
 
     # ----- menus contextuels -----
