@@ -181,7 +181,7 @@ Chaque capture est suivie de l'explication de ses différentes parties.
 > Deux solutions :
 > - **Débloquer le fichier** : clic droit sur le fichier **ChatLocal** téléchargé → **Propriétés** → coche **Débloquer** en bas → **OK**
 >   (ou **Informations complémentaires** → **Exécuter quand même** pour SmartScreen).
-> - **Sans exécutable** : installe Python, puis lance `ChatLocal.pyw` (double-clic), voir la section ci-dessous.
+> - **Sans exécutable (recommandé si Windows bloque)** : installe [Python](https://www.python.org) (coche *Add to PATH*), télécharge le dépôt, puis double-clique sur **`Installer ChatLocal.bat`**. Il installe les dépendances et crée un raccourci **Lancer ChatLocal** avec le logo sur ton Bureau. Aucun `.exe` : Windows ne bloque rien.
 >
 > Pourquoi ? Windows 11 (fonction *Smart App Control*) bloque les applications qui n'ont pas de signature numérique payante. Le code est entièrement visible dans ce dépôt, et `ChatLocal.pyw` fonctionne sans cette limite.
 
@@ -244,6 +244,7 @@ et Python doit être installé si tu veux lancer du code Python depuis le termin
 ChatLocal/
 ├── main.py            point d'entrée
 ├── ChatLocal.pyw      lanceur par double-clic (sans console, sans application à télécharger)
+├── Installer ChatLocal.bat   installation en un clic + raccourci sur le Bureau
 ├── attachments.py     lecture et limites des fichiers joints
 ├── system_prompt.py   consignes envoyées aux modèles (français, emojis, heure du PC)
 ├── ui/                interface PySide6 (fenêtre, chat, sidebar, éditeur, terminal…)
