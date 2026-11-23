@@ -35,5 +35,9 @@ code = subprocess.call(cmd, cwd=ROOT)
 shutil.rmtree(ROOT / "build", ignore_errors=True)
 exe = ROOT / "dist" / "ChatLocal.exe"
 if code == 0 and exe.exists():
+    dl = ROOT / "download"          # copie versionnée dans le dépôt : lien de téléchargement du README
+    dl.mkdir(exist_ok=True)
+    shutil.copy2(exe, dl / "ChatLocal.exe")
     print(f"\nExécutable prêt : {exe} ({exe.stat().st_size / 1_000_000:.0f} Mo)")
+    print(f"Copie pour le dépôt : {dl / 'ChatLocal.exe'}")
 sys.exit(code)
