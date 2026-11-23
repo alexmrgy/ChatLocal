@@ -1,4 +1,4 @@
-"""Test : l'heure de l'ordinateur est transmise aux modèles (message système) à chaque requête."""
+"""Test : les consignes (français, emojis, heure du PC) sont transmises aux modèles (message système) à chaque requête."""
 import json
 import os
 import sys
@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import clock  # noqa: E402
+import system_prompt as clock  # noqa: E402
 from ollama import client  # noqa: E402
 
 fails = 0
@@ -28,6 +28,8 @@ msgs = [{"role": "user", "content": "Quelle heure est-il ?"}]
 out = clock.with_time(msgs, fixed)
 check("message système placé en tête", out[0]["role"] == "system" and out[1] == msgs[0] and len(msgs) == 1)
 check("consigne de répondre avec l'heure", "14:05:09" in out[0]["content"] and "heure" in out[0]["content"])
+check("consigne : toujours en français", "TOUJOURS en français" in out[0]["content"])
+check("consigne : emojis pertinents", "emojis" in out[0]["content"] and "blocs de code" in out[0]["content"])
 
 # requête réelle vers un faux serveur Ollama : le corps contient l'heure courante
 BODIES = []

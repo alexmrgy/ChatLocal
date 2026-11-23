@@ -8,7 +8,7 @@ import threading
 from typing import Iterator
 from urllib.parse import urlparse
 
-import clock
+import system_prompt
 
 BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 if "://" not in BASE_URL:
@@ -67,7 +67,7 @@ class ChatStream:
 
     def run(self) -> Iterator[tuple[str, str]]:
         """Produit ('thinking'|'content', texte)."""
-        body = json.dumps({"model": self.model, "messages": clock.with_time(self.messages), "stream": True})
+        body = json.dumps({"model": self.model, "messages": system_prompt.with_time(self.messages), "stream": True})
         conn = self._conn = _conn(600, self.base)
         try:
             conn.request("POST", "/api/chat", body=body, headers={"Content-Type": "application/json"})

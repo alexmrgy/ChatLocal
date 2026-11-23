@@ -20,7 +20,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795432516" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795432796" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -41,6 +41,7 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 | 🗂️ **Historique organisé** | Dossiers, épinglage, archivage, renommage, déplacement et recherche rapide. |
 | 📎 **Fichiers joints** | Bouton `+` ou glisser-déposer : fichiers texte et code (lus par le modèle) et images (modèles Ollama avec vision). |
 | ⚖️ **Comparaison de modèles** | Suis une vraie conversation avec deux modèles à la fois : réponses côte à côte, chacun se souvient de ses propres réponses, avec temps de réponse et longueur (`Ctrl+Maj+M`). Les comparaisons sont enregistrées dans l'historique et se rouvrent comme une conversation. |
+| 🇫🇷 **Réponses en français** | Tous les modèles répondent toujours en français, avec des emojis adaptés au sujet. |
 | 🕐 **Heure du PC** | Tous les modèles connaissent la date et l'heure de ton ordinateur et peuvent te les donner si tu les demandes. |
 | 🕶️ **Chat éphémère** | Une conversation qui n'est jamais enregistrée. |
 | 🧑‍💻 **Panneau de code** | Les longs blocs de code s'ouvrent à droite, dans un éditeur avec numéros de ligne et coloration. |
@@ -94,7 +95,7 @@ python main.py
 ChatLocal/
 ├── main.py            point d'entrée
 ├── attachments.py     lecture et limites des fichiers joints
-├── clock.py           date et heure de l'ordinateur transmises aux modèles
+├── system_prompt.py   consignes envoyées aux modèles (français, emojis, heure du PC)
 ├── ui/                interface PySide6 (fenêtre, chat, sidebar, éditeur, terminal…)
 ├── ollama/            client HTTP Ollama et threads de génération
 ├── nvidia/            client de l'API NVIDIA

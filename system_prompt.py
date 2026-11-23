@@ -1,4 +1,4 @@
-"""Heure de l'ordinateur, communiquée aux modèles pour qu'ils puissent répondre à « quelle heure est-il ? »."""
+"""Consignes envoyées à tous les modèles : heure du PC, réponses en français, emojis."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -18,11 +18,22 @@ def now_text(now: datetime | None = None) -> str:
             f"(heure de l'ordinateur de l'utilisateur, fuseau {zone})")
 
 
+STYLE = (
+    "Réponds TOUJOURS en français, même si la question est posée dans une autre langue ; "
+    "ne change de langue que si l'utilisateur demande explicitement une traduction ou une autre langue. "
+    "Le code, les commandes, les noms techniques et les citations restent inchangés. "
+    "Rends tes réponses vivantes avec des emojis pertinents qui correspondent au sujet : "
+    "un emoji au début des titres et des points de liste, et quelques-uns dans le texte "
+    "(environ un à trois par paragraphe), variés et jamais au hasard. N'en mets jamais dans les blocs de code."
+)
+
+
 def system_message(now: datetime | None = None) -> dict:
     return {"role": "system", "content": (
+        f"{STYLE}\n\n"
         f"Date et heure actuelles : {now_text(now)}. "
         "Si l'utilisateur te demande l'heure ou la date, réponds avec ces informations exactes, "
-        "dans sa langue, sans dire que tu n'y as pas accès.")}
+        "sans dire que tu n'y as pas accès.")}
 
 
 def with_time(messages: list[dict], now: datetime | None = None) -> list[dict]:
