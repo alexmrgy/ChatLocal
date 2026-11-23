@@ -23,7 +23,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
 </p>
 
 <p>
-  <a href="https://raw.githubusercontent.com/alexmrgy/ChatLocal/72aac0334f3149185bb3ba4f6a3a39ada4cc69f8/download/ChatLocal.exe">
+  <a href="https://raw.githubusercontent.com/alexmrgy/ChatLocal/285138be7de785370e46e0b881d948d4ab236847/download/ChatLocal.exe">
     <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20T%C3%A9l%C3%A9charger-ChatLocal-4867be?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger ChatLocal">
   </a>
 </p>
@@ -172,7 +172,7 @@ Chaque capture est suivie de l'explication de ses différentes parties.
 
 ### ⬇️ Le plus simple : télécharger l'application
 
-1. **[Télécharge ChatLocal](https://raw.githubusercontent.com/alexmrgy/ChatLocal/72aac0334f3149185bb3ba4f6a3a39ada4cc69f8/download/ChatLocal.exe)** (environ 40 Mo).
+1. **[Télécharge ChatLocal](https://raw.githubusercontent.com/alexmrgy/ChatLocal/285138be7de785370e46e0b881d948d4ab236847/download/ChatLocal.exe)** (environ 40 Mo).
 2. Double-clique dessus : rien à installer.
 3. Installe [Ollama](https://ollama.com) si ce n'est pas déjà fait, puis `ollama pull gemma3` pour avoir un modèle.
 
