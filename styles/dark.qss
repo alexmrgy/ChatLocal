@@ -277,3 +277,7 @@ QComboBox QAbstractItemView {
 }
 QLabel#Title { font-size: 24px; font-weight: 500; color: #ececec; background: transparent; }
 QLabel#Sub { color: #8e8e8e; background: transparent; }
+QPushButton#Action { background: #2d2d2d; border: none; border-radius: 12px; padding: 0 16px; color: #ececec; }
+QPushButton#Action:hover { background: #363636; }
+QPushButton#Action:pressed { background: #303233; }
+QPushButton#Action:disabled { color: #6a6a6a; }

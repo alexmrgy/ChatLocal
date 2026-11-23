@@ -108,11 +108,32 @@ check("retour accueil décoche le bouton", not win.sidebar.compare.isChecked())
 win.sidebar.compare.click()
 pump(200)
 
-# changer de modèle après une comparaison : le titre suit et la colonne est remise à zéro
+check("la conversation survit au changement de page", len(c.side_a.history) == 2 and len(c.side_b.history) == 2)
+
+# 2e question : chaque modèle reçoit SON historique puis la nouvelle question
+n = len(SENT)
+c.edit.setPlainText("Et maintenant ?")
+c.run()
+pump(5000, lambda: not c.busy())
+ma, mb = SENT[n][1], SENT[n + 1][1]
+check("suite : A reçoit son historique", [m["role"] for m in ma] == ["user", "assistant", "user"]
+      and "alpha" in ma[1]["content"] and ma[2]["content"] == "Et maintenant ?")
+check("suite : B reçoit son historique", [m["role"] for m in mb] == ["user", "assistant", "user"]
+      and "beta" in mb[1]["content"] and "alpha" not in mb[1]["content"])
+check("deux échanges affichés par colonne", len(c.side_a.turns) == 6 and len(c.side_b.turns) == 6)
+pump(300)
+win.grab().save(str(OUT / "shot_compare_2turns.png"))
+
+# changer de modèle : nouvelle comparaison
 c.combo_b.setCurrentIndex(0)
-check("changer de modèle B met à jour sa colonne", c.side_b.title.text() == c.combo_b.currentText() and c.side_b.msg is None)
-check("la réponse de A est conservée", c.side_a.msg is not None)
+check("changer de modèle repart d'une conversation vide", c.side_a.history == [] and c.side_b.history == []
+      and c.side_b.title.text() == c.combo_b.currentText() and not c.side_a.turns)
 c.combo_b.setCurrentIndex(1)
+c.edit.setPlainText("Encore une")
+c.run()
+pump(5000, lambda: not c.busy())
+c.reset_all()
+check("« Nouvelle comparaison » vide tout", not c.side_a.turns and c.side_a.history == [])
 
 # arrêt en cours de route
 c.edit.setPlainText("Encore")

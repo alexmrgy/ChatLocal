@@ -44,7 +44,7 @@ class Sidebar(QWidget):
         self.compare.clicked.connect(self.compareClicked)
         self.more = IconButton("dots", tooltip="Plus", **kw)
         self.more.clicked.connect(lambda: self.moreClicked.emit(self.more.mapToGlobal(QPoint(self.more.width() + 6, 0))))
-        for b in (self.home, self.history, self.manager, self.compare, self.more):
+        for b in (self.home, self.compare, self.history, self.manager, self.more):
             col.addWidget(b)
         col.addStretch(1)
 
