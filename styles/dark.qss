@@ -257,3 +257,23 @@ QLineEdit#TermInput {
 QLineEdit#TermInput:focus { border-color: #4867be; }
 QFrame#FileChip { background: #1b1b1b; border: 1px solid rgba(255, 255, 255, 26); border-radius: 12px; }
 QLabel#FileChipName { color: #d8d8d8; font-size: 13px; background: transparent; }
+
+/* comparaison de modèles */
+QFrame#CompareSide { background: #1b1b1c; border: 1px solid #262728; border-radius: 14px; }
+QLabel#CompareTitle { font-size: 16px; font-weight: 700; background: transparent; }
+QLabel#CompareStats { color: #8e8e8e; font-size: 13px; background: transparent; }
+QLabel#CompareVs { color: #8e8e8e; font-weight: 700; padding: 0 6px; }
+QScrollArea#CompareScroll, QWidget#CompareBody { background: transparent; border: none; }
+QScrollArea#CompareScroll > QWidget > QWidget { background: transparent; }
+QComboBox#CompareCombo {
+    background: #2d2d2d; border: none; border-radius: 12px; padding: 0 14px; color: #ececec;
+}
+QComboBox#CompareCombo:hover { background: #363636; }
+QComboBox#CompareCombo:disabled { color: #8e8e8e; }
+QComboBox#CompareCombo::drop-down { border: none; width: 26px; }
+QComboBox QAbstractItemView {
+    background: #2a2b2d; border: 1px solid #3a3b3d; border-radius: 8px; padding: 4px; outline: none;
+    selection-background-color: #3a3b3e; color: #ececec;
+}
+QLabel#Title { font-size: 24px; font-weight: 500; color: #ececec; background: transparent; }
+QLabel#Sub { color: #8e8e8e; background: transparent; }

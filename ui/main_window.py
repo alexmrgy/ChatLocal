@@ -22,6 +22,7 @@ from ollama.workers import ChatWorker, ModelsPoller, NvidiaModelsWorker
 
 from .home_view import HomePage, TopBar, centered_slot
 from .code_panel import CodePanel
+from .compare import ComparePage
 from .input_bar import InputBar
 from .manager import ManagerPage
 from .messages import CODE_HOOKS, COLUMN_MAX, AssistantMessage, ChatView
@@ -34,7 +35,7 @@ from .titlebar import TITLE_H, TitleBar, make_menu
 HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT = 10, 11, 12, 13, 14
 HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCAPTION = 15, 16, 17, 2
 RESIZE_BORDER = 6
-HOME, CHAT, MANAGER = 0, 1, 2
+HOME, CHAT, MANAGER, COMPARE = 0, 1, 2, 3
 
 
 class Toast(QLabel):
@@ -221,6 +222,11 @@ class MainWindow(QWidget):
         self.manager.exportRequested.connect(self.bulk_export)
         self.stack.addWidget(self.manager)
 
+        self.compare = ComparePage()
+        self.compare.stream_factory = self._compare_stream
+        self.compare.message.connect(lambda msg: self.toast.show_message(msg, 3500))
+        self.stack.addWidget(self.compare)
+
         self.input = InputBar()
         self.input.submitted.connect(self.on_submit)
         self.input.stopRequested.connect(self.stop_generation)
@@ -281,6 +287,7 @@ class MainWindow(QWidget):
         hist = self._act("Historique des conversations", self.toggle_history, "Ctrl+B")
         full = self._act("Plein écran", self._toggle_fullscreen, "F11")
         allc = self._act("Toutes les discussions", self.show_manager, "Ctrl+Shift+L")
+        compare = self._act("Comparer deux modèles", self.show_compare, "Ctrl+Shift+M")
         self._code_auto_action = self._act(self._code_auto_label(), self._toggle_code_auto)
         codeclose = self._act("Fermer le panneau de code", self.code_panel.close_panel)
         state = self._act("État d'Ollama…", self._show_state)
@@ -292,7 +299,7 @@ class MainWindow(QWidget):
         for title, acts in (
             ("Fichier", [new, ephem, search, refresh, None, quit_]),
             ("Modifier", [rename, pin, arch, delete, None, copy_last]),
-            ("Affichage", [hist, allc, self._code_auto_action, codeclose, full]),
+            ("Affichage", [hist, allc, compare, self._code_auto_action, codeclose, full]),
             ("Aide", [state, reset, about]),
         ):
             m = make_menu(self)
@@ -301,6 +308,7 @@ class MainWindow(QWidget):
             self.titlebar.add_menu(title, m)
         self._more = make_menu(self)
         self._more.addAction(new)
+        self._more.addAction(compare)
         self._more.addAction(refresh)
 
     # ------------------------------------------------------------ fenêtre
@@ -421,6 +429,7 @@ class MainWindow(QWidget):
 
     def closeEvent(self, e) -> None:
         self.code_panel.cleanup()
+        self.compare.cancel()
         self._save_state()
         self._abort_generation()
         self.poller.stop()
@@ -436,6 +445,30 @@ class MainWindow(QWidget):
         if self.nvidia_key:
             self._fetch_nvidia(self.nvidia_key, announce=False)
         self.toast.show_message("Actualisation des modèles…", 1500)
+
+    def _compare_stream(self, model: str, msgs: list):
+        """Flux de réponse pour la page de comparaison (Ollama ou NVIDIA)."""
+        if model.startswith(nvidia_client.PREFIX):
+            if not self.nvidia_key:
+                raise ValueError("Ajoute ta clé API NVIDIA pour comparer un modèle NVIDIA.")
+            return nvidia_client.ChatStream(self.nvidia_key, model[len(nvidia_client.PREFIX):], msgs)
+        if not self.running:
+            raise ValueError(f"Ollama est injoignable sur {client.BASE_URL}. Lance Ollama puis réessaie.")
+        return client.ChatStream(model, msgs)
+
+    def show_compare(self) -> None:
+        """Page « Comparer deux modèles » : même question, deux réponses côte à côte."""
+        self._abort_generation()
+        self._set_ephemeral(False)
+        models = [(m, self.input.display_name(m)) for m in self._all_models()]
+        self.compare.set_models(models, prefer=self.input.model())
+        self.stack.setCurrentIndex(COMPARE)
+        self.sidebar.set_home_checked(False)
+        self.sidebar.set_manager_checked(False)
+        self._refresh_topbar()
+        self.compare.edit.setFocus()
+        if len(models) < 2:
+            self.toast.show_message("Il faut au moins deux modèles (Ollama ou NVIDIA) pour comparer.", 4000)
 
     def _all_models(self) -> list[str]:
         return self.models + [nvidia_client.PREFIX + m for m in self.nvidia_models]

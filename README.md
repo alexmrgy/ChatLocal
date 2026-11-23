@@ -20,7 +20,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795429839" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795430269" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -40,6 +40,7 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 | ☁️ **Modèles NVIDIA** | Ajoute ta clé API pour utiliser les modèles hébergés. La clé est chiffrée sur disque (DPAPI Windows). |
 | 🗂️ **Historique organisé** | Dossiers, épinglage, archivage, renommage, déplacement et recherche rapide. |
 | 📎 **Fichiers joints** | Bouton `+` ou glisser-déposer : fichiers texte et code (lus par le modèle) et images (modèles Ollama avec vision). |
+| ⚖️ **Comparaison de modèles** | Pose une question à deux modèles en même temps : réponses côte à côte, avec temps de réponse et longueur (`Ctrl+Maj+M`). |
 | 🕶️ **Chat éphémère** | Une conversation qui n'est jamais enregistrée. |
 | 🧑‍💻 **Panneau de code** | Les longs blocs de code s'ouvrent à droite, dans un éditeur avec numéros de ligne et coloration. |
 | ▶️ **Terminal intégré** | Lance du code Python ou C directement depuis la réponse. |
@@ -75,6 +76,7 @@ python main.py
 | `Ctrl` + `K` / `Ctrl` + `F` | Rechercher |
 | `Ctrl` + `B` | Afficher / masquer l'historique |
 | `Ctrl` + `Maj` + `L` | Toutes les discussions |
+| `Ctrl` + `Maj` + `M` | Comparer deux modèles |
 | `F2` | Renommer la conversation |
 | `Ctrl` + `Alt` + `P` | Épingler / désépingler |
 | `Ctrl` + `Maj` + `A` | Archiver |
