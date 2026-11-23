@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette  # noqa: E402
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QIcon, QPalette  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from database.db import Database  # noqa: E402
@@ -34,6 +34,7 @@ def load_fonts(app: QApplication) -> None:
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("ChatLocal")
+    app.setWindowIcon(QIcon(str(ROOT / "assets" / "logo.png")))
     load_fonts(app)
     load_style(app)
     win = MainWindow(Database())

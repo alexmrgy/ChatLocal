@@ -1,6 +1,8 @@
 <div align="center">
 
-<h1>💬 ChatLocal</h1>
+<img src="assets/logo.png" alt="Logo ChatLocal" width="110">
+
+<h1>ChatLocal</h1>
 
 <p><b>Ton assistant IA de bureau : rapide, élégant et privé.</b><br>
 Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec les modèles NVIDIA, dans une interface sombre soignée.</p>
@@ -13,6 +15,12 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
 </p>
 
 <p>
+  <a href="https://github.com/alexmrgy/ChatLocal/raw/main/download/ChatLocal.exe">
+    <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20T%C3%A9l%C3%A9charger-ChatLocal.exe-4867be?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger ChatLocal.exe">
+  </a>
+</p>
+
+<p>
   <a href="#-aperçu">Aperçu</a> ·
   <a href="#-fonctionnalités">Fonctionnalités</a> ·
   <a href="#-installation">Installation</a> ·
@@ -20,7 +28,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795433176" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795433420" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -52,6 +60,17 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 
 ## 🚀 Installation
 
+### ⬇️ Le plus simple : télécharger l'application
+
+1. **[Télécharge `ChatLocal.exe`](https://github.com/alexmrgy/ChatLocal/raw/main/download/ChatLocal.exe)** (environ 40 Mo).
+2. Double-clique dessus : rien à installer.
+3. Installe [Ollama](https://ollama.com) si ce n'est pas déjà fait, puis `ollama pull gemma3` pour avoir un modèle.
+
+> ℹ️ Windows peut afficher « Windows a protégé votre ordinateur » car l'application n'est pas signée :
+> clique sur **Informations complémentaires** puis **Exécuter quand même**.
+
+### 🧑‍💻 Depuis le code source
+
 **Prérequis :** Windows, Python 3.10+ et [Ollama](https://ollama.com) avec au moins un modèle installé.
 
 ```powershell
@@ -73,7 +92,7 @@ pip install pyinstaller
 python scripts/build_exe.py
 ```
 
-Le résultat se trouve dans `dist/ChatLocal.exe` (environ 40 Mo). Ollama doit toujours être installé séparément,
+Le résultat se trouve dans `dist/ChatLocal.exe` (environ 40 Mo) et une copie dans `download/`, utilisée par le bouton de téléchargement. Ollama doit toujours être installé séparément,
 et Python doit être installé si tu veux lancer du code Python depuis le terminal intégré.
 
 ## ⌨️ Raccourcis
@@ -115,6 +134,7 @@ ChatLocal/
 ├── styles/            thème sombre (dark.qss)
 ├── assets/            polices et icônes SVG
 ├── scripts/           icônes, exécutable (.exe) et capture d'écran
+├── download/          ChatLocal.exe (application prête à l'emploi)
 ├── tests/             tests automatiques
 └── docs/              images du README
 ```
