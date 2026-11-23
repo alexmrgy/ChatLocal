@@ -13,7 +13,9 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QMessageBox, QStackedWidget,
                                QVBoxLayout, QWidget)
 
+import attachments
 from database.db import Database
+from database.db import _load_files as load_files
 from nvidia import client as nvidia_client
 from ollama import client
 from ollama.workers import ChatWorker, ModelsPoller, NvidiaModelsWorker
@@ -222,6 +224,7 @@ class MainWindow(QWidget):
         self.input = InputBar()
         self.input.submitted.connect(self.on_submit)
         self.input.stopRequested.connect(self.stop_generation)
+        self.input.filesRejected.connect(lambda msg: self.toast.show_message(msg, 3500))
         self.input.modelChosen.connect(self._choose_model)
         self.input.refreshRequested.connect(self.refresh_models)
         self.input.nvidiaKeyAdd.connect(self.add_nvidia_key)
@@ -709,10 +712,12 @@ class MainWindow(QWidget):
         self.hist_ids = []
         for m in self.db.get_path(cid):
             idx = len(self.history)
-            self.history.append({"role": m["role"], "content": m["content"], "quote": m["quote"]})
+            self.history.append({"role": m["role"], "content": m["content"], "quote": m["quote"],
+                                 "files": m["files"]})
             self.hist_ids.append(m["id"])
             if m["role"] == "user":
-                self.chat.add_user(m["content"], idx, m["ver"], m["total"], fade=False, quote=m["quote"])
+                self.chat.add_user(m["content"], idx, m["ver"], m["total"], fade=False, quote=m["quote"],
+                                   files=m["files"])
             else:
                 self.chat.add_assistant(m["content"], idx, fade=False)
         if row["model"] and row["model"] in self.models:
@@ -811,7 +816,8 @@ class MainWindow(QWidget):
         self._more.exec(pos)
 
     # ------------------------------------------------------------ envoi / streaming
-    def on_submit(self, text: str, edit_index: int | None = None, quote: str | None = None) -> None:
+    def on_submit(self, text: str, edit_index: int | None = None, quote: str | None = None,
+                  files: list | None = None) -> None:
         if self.worker:
             return
         model = self.input.model()
@@ -854,12 +860,15 @@ class MainWindow(QWidget):
             self.hist_ids = self.hist_ids[:edit_index]
             self.chat.truncate_from(edit_index)
         q = quote if quote is not None else self.input.quote()      # extrait sélectionné joint à ce message
-        mid = None if self.ephemeral else self.db.add_message(self.cid, "user", text, parent=parent, quote=q)
+        fl = files if files is not None else self.input.files()      # fichiers joints à ce message
+        mid = None if self.ephemeral else self.db.add_message(self.cid, "user", text, parent=parent, quote=q, files=fl)
         ver, total = self.db.version_info(mid) if mid else (1, 1)
-        self.chat.add_user(text, len(self.history), ver, total, quote=q)
-        self.history.append({"role": "user", "content": text, "quote": q})
+        self.chat.add_user(text, len(self.history), ver, total, quote=q, files=fl)
+        self.history.append({"role": "user", "content": text, "quote": q, "files": fl})
         if quote is None:
             self.input.clear_quote()
+        if files is None:
+            self.input.clear_files()
         self.hist_ids.append(mid)
         self.assistant = self.chat.add_assistant(index=len(self.history))
         self.buffer, self._failed, self._dirty = "", False, False
@@ -868,6 +877,9 @@ class MainWindow(QWidget):
             self.history_panel.select(self.cid)
 
         msgs = [self._model_msg(m) for m in self.history]
+        if is_nvidia and any("images" in m for m in msgs):
+            msgs = [{k: v for k, v in m.items() if k != "images"} for m in msgs]
+            self.toast.show_message("Les images ne sont pas envoyées aux modèles NVIDIA.", 3500)
         stream = (nvidia_client.ChatStream(self.nvidia_key, model[len(nvidia_client.PREFIX):], msgs) if is_nvidia
                   else client.ChatStream(model, msgs))
         w = ChatWorker(stream, self)
@@ -883,10 +895,17 @@ class MainWindow(QWidget):
     def _model_msg(m: dict) -> dict:
         """Message envoyé au modèle : l'extrait sélectionné est joint au texte de l'utilisateur."""
         q = m.get("quote")
+        content = m["content"]
         if m["role"] == "user" and q:
-            return {"role": "user",
-                    "content": f'Extrait sélectionné par l\'utilisateur :\n"""\n{q}\n"""\n\n{m["content"]}'}
-        return {"role": m["role"], "content": m["content"]}
+            content = f'Extrait sélectionné par l\'utilisateur :\n"""\n{q}\n"""\n\n{content}'
+        msg = {"role": m["role"], "content": content}
+        files = m.get("files") or []
+        if m["role"] == "user" and files:
+            msg["content"] = attachments.with_files(content, files)
+            imgs = attachments.images(files)
+            if imgs:
+                msg["images"] = imgs
+        return msg
 
     def edit_prompt(self, index: int, text: str) -> None:
         """Modifie un prompt : l'ancienne version reste consultable (‹ 1/2 ›), puis la réponse est régénérée."""
@@ -897,7 +916,8 @@ class MainWindow(QWidget):
                 return
         self._abort_generation()
         keep = self.history[index].get("quote", "") if index < len(self.history) else ""
-        self.on_submit(text, edit_index=index, quote=keep)
+        keep_files = self.history[index].get("files") or [] if index < len(self.history) else []
+        self.on_submit(text, edit_index=index, quote=keep, files=keep_files)
 
     # ------------------------------------------------------------ menu d'une conversation
     def open_title_menu(self, pos: QPoint) -> None:
@@ -1001,6 +1021,8 @@ class MainWindow(QWidget):
             parts += ["### " + ("Vous" if m["role"] == "user" else "Assistant"), ""]
             if m["quote"]:
                 parts += ["\n".join("> " + ln for ln in m["quote"].splitlines()), ""]
+            for f in load_files(m["files"]):
+                parts += [f"📎 {f['name']}", ""]
             parts += [m["content"], ""]
         return "\n".join(parts)
 

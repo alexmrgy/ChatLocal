@@ -20,7 +20,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795429250" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795429649" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -39,6 +39,7 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 | 🤖 **100 % local** | Utilise tes modèles Ollama : rien ne quitte ton ordinateur. |
 | ☁️ **Modèles NVIDIA** | Ajoute ta clé API pour utiliser les modèles hébergés. La clé est chiffrée sur disque (DPAPI Windows). |
 | 🗂️ **Historique organisé** | Dossiers, épinglage, archivage, renommage, déplacement et recherche rapide. |
+| 📎 **Fichiers joints** | Bouton `+` ou glisser-déposer : fichiers texte et code (lus par le modèle) et images (modèles Ollama avec vision). |
 | 🕶️ **Chat éphémère** | Une conversation qui n'est jamais enregistrée. |
 | 🧑‍💻 **Panneau de code** | Les longs blocs de code s'ouvrent à droite, dans un éditeur avec numéros de ligne et coloration. |
 | ▶️ **Terminal intégré** | Lance du code Python ou C directement depuis la réponse. |
@@ -89,6 +90,7 @@ python main.py
 ```text
 ChatLocal/
 ├── main.py            point d'entrée
+├── attachments.py     lecture et limites des fichiers joints
 ├── ui/                interface PySide6 (fenêtre, chat, sidebar, éditeur, terminal…)
 ├── ollama/            client HTTP Ollama et threads de génération
 ├── nvidia/            client de l'API NVIDIA

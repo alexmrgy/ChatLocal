@@ -255,3 +255,5 @@ QLineEdit#TermInput {
     font-family: "Cascadia Mono", Consolas, monospace; font-size: 13px; selection-background-color: rgba(86, 140, 255, 105);
 }
 QLineEdit#TermInput:focus { border-color: #4867be; }
+QFrame#FileChip { background: #1b1b1b; border: 1px solid rgba(255, 255, 255, 26); border-radius: 12px; }
+QLabel#FileChipName { color: #d8d8d8; font-size: 13px; background: transparent; }

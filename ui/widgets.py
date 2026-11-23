@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QColor, QCursor, QPainter
 from PySide6.QtWidgets import QAbstractButton, QSizePolicy, QTextBrowser
 
 from . import theme
@@ -38,6 +38,8 @@ class IconButton(QAbstractButton):
         self._anim = QVariantAnimation(self, duration=hover_ms, startValue=0.0, endValue=1.0)
         self._anim.setEasingCurve(QEasingCurve.OutCubic)
         self._anim.valueChanged.connect(self._on_anim)
+        # filet de sécurité : Qt n'envoie pas toujours « leave » (bord de fenêtre sans cadre, menu fermé…)
+        self._watch = QTimer(self, interval=60, timeout=self._check_hover)
         self.setFixedSize(*size)
         self.setCursor(Qt.PointingHandCursor)
         self.setFocusPolicy(Qt.NoFocus)
@@ -79,11 +81,24 @@ class IconButton(QAbstractButton):
         self._anim.setEndValue(end)
         self._anim.start()
 
+    def _check_hover(self) -> None:
+        if not self.isVisible() or not self.rect().contains(self.mapFromGlobal(QCursor.pos())):
+            self._watch.stop()
+            self._animate_to(0.0)
+
     def enterEvent(self, e) -> None:
         self._animate_to(1.0)
+        self._watch.start()
 
     def leaveEvent(self, e) -> None:
+        self._watch.stop()
         self._animate_to(0.0)
+
+    def hideEvent(self, e) -> None:
+        self._watch.stop()
+        self._anim.stop()
+        self._t = 0.0
+        super().hideEvent(e)
 
     def sizeHint(self) -> QSize:
         return self.size()

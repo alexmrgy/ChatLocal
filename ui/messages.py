@@ -315,7 +315,8 @@ class UserMessage(QWidget):
     editSubmitted = Signal(str)
     versionRequested = Signal(int)   # -1 : version précédente, +1 : suivante
 
-    def __init__(self, text: str, ver: int = 1, total: int = 1, locked: bool = False, quote: str = "", parent=None):
+    def __init__(self, text: str, ver: int = 1, total: int = 1, locked: bool = False, quote: str = "", files: list | None = None,
+                 parent=None):
         super().__init__(parent)
         self._text = text
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -351,6 +352,21 @@ class UserMessage(QWidget):
             ql.addLayout(head)
             qrow.addWidget(card)
             sv.addLayout(qrow)
+        for f in files or []:                       # fichiers joints à ce message
+            frow = QHBoxLayout()
+            frow.setContentsMargins(0, 0, 0, 0)
+            frow.addStretch(1)
+            card = QFrame(objectName="UserQuote")
+            fl = QHBoxLayout(card)
+            fl.setContentsMargins(12, 8, 14, 8)
+            fl.setSpacing(8)
+            ic = QLabel()
+            ic.setPixmap(icon_pixmap("images" if f["kind"] == "image" else "pencil", theme.TEXT_DIM, 16,
+                                     self.devicePixelRatioF()))
+            fl.addWidget(ic)
+            fl.addWidget(QLabel(textwrap.shorten(f["name"], width=40, placeholder="…"), objectName="UserQuoteHead"))
+            frow.addWidget(card)
+            sv.addLayout(frow)
         brow = QHBoxLayout()
         brow.setContentsMargins(0, 0, 0, 0)
         brow.addStretch(1)
@@ -731,8 +747,8 @@ class ChatView(QScrollArea):
         self._stick = True
 
     def add_user(self, text: str, index: int, ver: int = 1, total: int = 1, fade: bool = True,
-                 quote: str = "") -> None:
-        m = UserMessage(text, ver, total, self.locked, quote)
+                 quote: str = "", files: list | None = None) -> None:
+        m = UserMessage(text, ver, total, self.locked, quote, files)
         m.editSubmitted.connect(lambda new, i=index: self.editSubmitted.emit(i, new))
         m.versionRequested.connect(lambda d, i=index: self.versionRequested.emit(i, d))
         self._add(_row(m), index, fade)

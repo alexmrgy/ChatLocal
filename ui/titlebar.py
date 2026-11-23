@@ -1,8 +1,9 @@
 """Barre de titre personnalisée : navigation, menus, contrôles de fenêtre."""
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QMenu, QPushButton, QWidget
+from PySide6.QtCore import QEvent, QPoint, Qt, Signal
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMenu, QPushButton, QWidget
 
 from . import theme
 from .widgets import IconButton
@@ -66,11 +67,19 @@ class TitleBar(QWidget):
         btn = QPushButton(title, objectName="MenuBtn")
         btn.setCursor(Qt.PointingHandCursor)
         btn.setFocusPolicy(Qt.NoFocus)
-        btn.clicked.connect(lambda: menu.exec(btn.mapToGlobal(QPoint(0, btn.height() + 2))))
+        btn.clicked.connect(lambda: self._open_menu(btn, menu))
         idx = self._menu_row.count() - 4  # avant le stretch et les 3 boutons
         self._menu_row.insertWidget(idx, btn)
         self._menus[title] = menu
         self._menu_buttons[title] = btn
+
+    @staticmethod
+    def _open_menu(btn: QPushButton, menu: QMenu) -> None:
+        menu.exec(btn.mapToGlobal(QPoint(0, btn.height() + 2)))
+        # après la fermeture du menu Qt garde le survol : on le retire si la souris est ailleurs
+        if not btn.rect().contains(btn.mapFromGlobal(QCursor.pos())):
+            QApplication.sendEvent(btn, QEvent(QEvent.Leave))
+            btn.update()
 
     def set_maximized(self, maximized: bool) -> None:
         self.btn_max.set_icon("win_restore" if maximized else "win_max")

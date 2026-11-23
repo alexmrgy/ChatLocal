@@ -1,10 +1,18 @@
 """Stockage SQLite des conversations (utilisé depuis le thread GUI uniquement)."""
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import time
 from pathlib import Path
+
+
+def _load_files(raw) -> list:
+    try:
+        return json.loads(raw) if raw else []
+    except ValueError:
+        return []
 
 
 def data_dir() -> Path:
@@ -59,6 +67,8 @@ class Database:
         mcols = [r["name"] for r in self.db.execute("PRAGMA table_info(messages)")]
         if "quote" not in mcols:
             self.db.execute("ALTER TABLE messages ADD COLUMN quote TEXT")
+        if "files" not in mcols:        # fichiers joints (JSON)
+            self.db.execute("ALTER TABLE messages ADD COLUMN files TEXT")
         if "parent_id" not in mcols:  # migration : messages linéaires -> arbre (versions d'un prompt)
             self.db.execute("ALTER TABLE messages ADD COLUMN parent_id INTEGER")
             self.db.execute("ALTER TABLE messages ADD COLUMN selected_child INTEGER")
@@ -158,7 +168,8 @@ class Database:
             rid = row["selected_child"]
         return out
 
-    def add_message(self, cid: int, role: str, content: str, parent="leaf", quote: str | None = None) -> int:
+    def add_message(self, cid: int, role: str, content: str, parent="leaf", quote: str | None = None,
+                    files: list | None = None) -> int:
         """Ajoute un message. parent="leaf" : à la fin de la branche courante ; sinon id du parent (None = racine)."""
         now = time.time()
         if parent == "leaf":
@@ -167,8 +178,8 @@ class Database:
         else:
             parent_id = parent
         cur = self.db.execute(
-            "INSERT INTO messages(conversation_id, role, content, created_at, parent_id, quote) VALUES(?,?,?,?,?,?)",
-            (cid, role, content, now, parent_id, quote or None),
+            "INSERT INTO messages(conversation_id, role, content, created_at, parent_id, quote, files) VALUES(?,?,?,?,?,?,?)",
+            (cid, role, content, now, parent_id, quote or None, json.dumps(files) if files else None),
         )
         mid = cur.lastrowid
         self._point_to(cid, parent_id, mid)
@@ -216,7 +227,7 @@ class Database:
         for r in self.current_path(cid):
             ver, total = self.version_info(r["id"])
             out.append({"id": r["id"], "role": r["role"], "content": r["content"], "ver": ver, "total": total,
-                        "quote": r["quote"] or ""})
+                        "quote": r["quote"] or "", "files": _load_files(r["files"])})
         return out
 
     def get_messages(self, cid: int) -> list[sqlite3.Row]:

@@ -5,9 +5,10 @@ import textwrap
 
 from PySide6.QtCore import QEvent, QPoint, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QKeyEvent, QPainter
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QTextEdit,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea,
+                               QTextEdit, QVBoxLayout, QWidget)
 
+import attachments
 from nvidia.client import PREFIX as NVIDIA_PREFIX
 
 from . import theme
@@ -66,6 +67,26 @@ class PromptEdit(QTextEdit):
         super().keyPressEvent(e)
 
 
+class FileChip(QFrame):
+    """Pastille d'un fichier joint : icône, nom (raccourci) et croix pour le retirer."""
+    removed = Signal()
+
+    def __init__(self, name: str, kind: str, parent=None):
+        super().__init__(parent)
+        self.setObjectName("FileChip")
+        h = QHBoxLayout(self)
+        h.setContentsMargins(10, 4, 4, 4)
+        h.setSpacing(6)
+        ic = QLabel()
+        ic.setPixmap(icon_pixmap("images" if kind == "image" else "pencil", theme.TEXT_DIM, 16, self.devicePixelRatioF()))
+        h.addWidget(ic)
+        h.addWidget(QLabel(textwrap.shorten(name, width=26, placeholder="…"), objectName="FileChipName"))
+        close = IconButton("win_close", size=(22, 22), icon_size=11, radius=7, fg=theme.TEXT_MUTE, fg_hover=theme.TEXT,
+                           tooltip="Retirer le fichier")
+        close.clicked.connect(self.removed)
+        h.addWidget(close)
+
+
 class QuoteChip(QFrame):
     """Carte « Sélection » au-dessus du champ de saisie : aperçu du texte sélectionné + croix pour le retirer."""
     removed = Signal()
@@ -107,6 +128,7 @@ class InputBar(QFrame):
     nvidiaKeyAdd = Signal()
     nvidiaKeyRemove = Signal()
     modelRenameRequested = Signal(str)   # identifiant complet du modèle à renommer
+    filesRejected = Signal(str)          # message d'erreur : fichier illisible ou trop gros
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -118,10 +140,18 @@ class InputBar(QFrame):
         self._running = False
         self._model = ""
         self._generating = False
+        self._files: list[dict] = []
+        self.setAcceptDrops(True)
 
         col = QVBoxLayout(self)
         col.setContentsMargins(8, 7, 8, 7)
         col.setSpacing(8)
+        self.files_row = QWidget()
+        self.files_lay = QHBoxLayout(self.files_row)
+        self.files_lay.setContentsMargins(4, 0, 0, 0)
+        self.files_lay.setSpacing(6)
+        self.files_row.hide()
+        col.addWidget(self.files_row, 0, Qt.AlignLeft)
         self.quote_chip = QuoteChip()
         self.quote_chip.removed.connect(self.clear_quote)
         self.quote_chip.hide()
@@ -133,7 +163,8 @@ class InputBar(QFrame):
         col.addLayout(row)
 
         self.plus = IconButton("plus", size=(30, 30), icon_size=20, fg=theme.TEXT, fg_hover="#ffffff",
-                               bg_hover="#444444", tooltip="Ajouter (bientôt disponible)")
+                               bg_hover="#444444", tooltip="Joindre des fichiers")
+        self.plus.clicked.connect(self.pick_files)
         self.edit = PromptEdit()
         self.edit.setPlaceholderText("Demander à Ollama")
         self.edit.submit.connect(self._on_submit)
@@ -201,6 +232,60 @@ class InputBar(QFrame):
         self.quote_chip.hide()
         self._sync_action()
 
+    # ----- fichiers joints -----
+    def files(self) -> list[dict]:
+        return list(self._files)
+
+    def pick_files(self) -> None:
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Joindre des fichiers", "",
+            "Tous les fichiers (*);;Texte et code (*.txt *.md *.py *.json *.csv *.html *.css *.js *.c *.cpp *.java *.log);;"
+            "Images (*.png *.jpg *.jpeg *.gif *.webp *.bmp)")
+        self.add_paths(paths)
+
+    def add_paths(self, paths) -> None:
+        for p in paths:
+            if len(self._files) >= attachments.MAX_FILES:
+                self.filesRejected.emit(f"Maximum {attachments.MAX_FILES} fichiers par message.")
+                break
+            try:
+                self._files.append(attachments.read_file(p))
+            except (attachments.AttachmentError, OSError) as e:
+                self.filesRejected.emit(str(e))
+        self._refresh_files()
+        self.edit.setFocus()
+
+    def clear_files(self) -> None:
+        self._files = []
+        self._refresh_files()
+
+    def _remove_file(self, i: int) -> None:
+        if 0 <= i < len(self._files):
+            del self._files[i]
+            self._refresh_files()
+
+    def _refresh_files(self) -> None:
+        while self.files_lay.count():
+            w = self.files_lay.takeAt(0).widget()
+            if w:
+                w.hide()
+                w.setParent(None)
+                w.deleteLater()
+        for i, f in enumerate(self._files):
+            chip = FileChip(f["name"], f["kind"])
+            chip.removed.connect(lambda i=i: self._remove_file(i))
+            self.files_lay.addWidget(chip)
+        self.files_row.setVisible(bool(self._files))
+        self._sync_action()
+
+    def dragEnterEvent(self, e) -> None:
+        if e.mimeData().hasUrls():
+            e.acceptProposedAction()
+
+    def dropEvent(self, e) -> None:
+        self.add_paths([u.toLocalFile() for u in e.mimeData().urls() if u.isLocalFile()])
+        e.acceptProposedAction()
+
     def set_locked(self, locked: bool) -> None:
         self.edit.setReadOnly(locked)
         self.edit.setPlaceholderText("Chat verrouillé : déverrouille-le pour écrire" if locked else "Demander à Ollama")
@@ -241,7 +326,7 @@ class InputBar(QFrame):
             self.action._fg_hover = self.action._fg
             self.action._bg_hover = self.action._bg
             self.action.setToolTip("Arrêter la génération")
-        elif self.edit.toPlainText().strip() or self._quote:
+        elif self.edit.toPlainText().strip() or self._quote or self._files:
             self.action.set_icon("arrow_up")
             self.action.set_colors(fg="#181818", bg="#ececec")
             self.action._fg_hover = self.action._fg
@@ -262,6 +347,8 @@ class InputBar(QFrame):
         text = self.edit.toPlainText().strip()
         if not text and self._quote:
             text = "Explique cet extrait."          # carte « Sélection » seule : question par défaut
+        elif not text and self._files:
+            text = "Analyse le fichier joint." if len(self._files) == 1 else "Analyse les fichiers joints."
         if text:
             self.edit.clear()
             self.submitted.emit(text)
