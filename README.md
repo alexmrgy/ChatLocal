@@ -5,6 +5,14 @@
 <h1>ChatLocal</h1>
 
 <p><b>Ton assistant IA de bureau : rapide, élégant et privé.</b><br>
+
+### 🏠 L'écran d'accueil
+
+- **Barre du haut** : boutons précédent / suivant, affichage de l'historique, et les menus **Fichier**, **Modifier**, **Affichage** et **Aide**.
+- **Barre d'icônes à gauche** : l'accueil, la **comparaison de deux modèles**, l'**historique** des discussions, la page **Toutes les discussions** (sélection et actions groupées) et le menu `⋯`.
+- **Zone de saisie** : le `+` joint des fichiers, le nom du modèle (en bas à droite de la barre) permet d'en changer, la flèche envoie le message.
+- **Raccourcis sous la barre** : des débuts de phrase prêts à l'emploi pour créer une image ou écrire un texte.
+- **Icône en haut à droite** : démarre un **chat éphémère**, qui n'est jamais enregistré.
 Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec les modèles NVIDIA, dans une interface sombre soignée.</p>
 
 <p>
@@ -28,7 +36,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795435690" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795435938" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -57,6 +65,108 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 | ✏️ **Édition et versions** | Modifie un message et retrouve les différentes versions d'une réponse. |
 | 📝 **Markdown complet** | Titres, listes, tableaux, citation d'un passage, copie de la dernière réponse. |
 | 🎨 **Thème sombre** | Interface épurée avec la police Nunito, fournie avec l'application. |
+
+## 🖼️ Visite guidée
+
+Chaque capture est suivie de l'explication de ses différentes parties.
+
+### 💬 La discussion
+
+<p align="center">
+  <img src="docs/chat.png?v=1795435938" alt="Une discussion" width="860">
+</p>
+
+- **Titre en haut** : le nom de la discussion. Clique dessus pour la renommer, l'épingler, la verrouiller, l'archiver, la copier ou la partager. La petite icône à gauche démarre un **nouveau chat**, celle de droite ouvre un **chat éphémère** (jamais enregistré).
+- **Bulle bleue** : ta question. Passe la souris dessus pour la **copier** ou la **modifier** : l'ancienne version reste consultable avec les flèches `‹ 1/2 ›`.
+- **Réponse de l'IA** : affichée en Markdown (titres, listes, tableaux, gras…), avec un bouton pour **copier** toute la réponse.
+- **Bloc de code** : coloration automatique, bouton **copier** et bouton **ouvrir à droite** (voir plus bas).
+- **Barre du bas** : le `+` joint des fichiers, le nom du modèle permet d'en changer, la flèche envoie (ou arrête la réponse en cours).
+
+### 🗂️ L'historique, les dossiers et les épinglés
+
+<p align="center">
+  <img src="docs/history.png?v=1795435938" alt="Historique des discussions" width="860">
+</p>
+
+- **Épinglés** : les discussions importantes restent en haut de la liste.
+- **Dossiers** : crée-en avec le `+`, donne-leur une couleur (clic droit sur le dossier) et range-y tes discussions. Un dossier se replie ou se déplie d'un clic.
+- **Récents** : toutes les autres discussions, de la plus récente à la plus ancienne. Au survol, une punaise et un menu `⋯` apparaissent sur chaque ligne.
+- **Glisser-déposer** : prends une discussion avec la souris et lâche-la sur un dossier pour la ranger, ou sur le fond de la liste pour la sortir du dossier.
+- **Loupe en haut** : ouvre la recherche rapide (`Ctrl+K`).
+
+### ☑️ Sélectionner plusieurs discussions
+
+<p align="center">
+  <img src="docs/selection.png?v=1795435938" alt="Sélection multiple" width="860">
+</p>
+
+- **`Ctrl` + clic** ajoute ou retire une discussion de la sélection ; **`Maj` + clic** sélectionne toute une plage. Les lignes sélectionnées passent en bleu.
+- **Barre du bas** : indique le nombre de discussions choisies et propose **Archiver** ou **Supprimer** pour toutes d'un coup (la suppression demande une confirmation).
+- **Raccourcis** : `Suppr` supprime la sélection, `Échap` l'annule.
+- Tu peux aussi **glisser toute la sélection** vers un dossier.
+
+### 📁 Déplacer une discussion dans un dossier
+
+<p align="center">
+  <img src="docs/move_menu.png?v=1795435938" alt="Menu pour déplacer une discussion" width="860">
+</p>
+
+- Ouvre le menu `⋯` (ou clic droit) d'une discussion puis **Déplacer vers un dossier**.
+- La liste montre tes dossiers avec leur couleur ; une **coche** indique le dossier actuel.
+- **Retirer du dossier** ramène la discussion dans les Récents, et **Nouveau dossier…** crée un dossier et y range tout de suite la discussion.
+
+### 🧑‍💻 Le panneau de code et le terminal
+
+<p align="center">
+  <img src="docs/code.png?v=1795435938" alt="Panneau de code" width="860">
+</p>
+
+- **Ouvrir à droite** : le bouton du bloc de code l'affiche dans un éditeur avec **numéros de ligne** et **coloration**. Les codes longs s'y ouvrent automatiquement.
+- **Bouton ▶ vert** : lance le code (Python ou C) et affiche le résultat dans un **terminal intégré** (bouton à côté).
+- **Modifiable** : tu corriges le code directement, il est enregistré automatiquement dans la discussion.
+- **Barre d'outils** : copier le code, l'enregistrer dans un fichier, fermer le panneau.
+
+### 📎 Joindre des fichiers
+
+<p align="center">
+  <img src="docs/files.png?v=1795435938" alt="Fichiers joints" width="860">
+</p>
+
+- Clique sur le `+` ou **glisse-dépose** des fichiers sur la barre de saisie.
+- Chaque fichier devient une **pastille** (avec une croix pour le retirer avant l'envoi).
+- Les fichiers **texte et code** sont lus et transmis au modèle ; les **images** sont envoyées aux modèles Ollama qui savent les voir.
+- Si tu n'écris rien, la question « Analyse le fichier joint. » est ajoutée.
+
+### 🤖 Choisir le modèle
+
+<p align="center">
+  <img src="docs/models.png?v=1795435938" alt="Choix du modèle" width="860">
+</p>
+
+- Clique sur le nom du modèle dans la barre de saisie : la liste montre tous tes modèles **Ollama** installés, avec une coche sur celui utilisé.
+- **Ajouter une clé API NVIDIA** donne accès aux modèles NVIDIA hébergés, ajoutés à la même liste.
+- Le choix est mémorisé **par discussion**. Un clic droit sur un modèle permet de lui donner un nom plus simple.
+
+### ⚖️ Comparer deux modèles
+
+<p align="center">
+  <img src="docs/compare.png?v=1795435938" alt="Comparaison de deux modèles" width="860">
+</p>
+
+- **Deux listes en haut** : choisis le modèle A et le modèle B (`Ctrl+Maj+M` ouvre la page).
+- **Une seule question** : les deux modèles répondent en même temps, côte à côte.
+- **Sous chaque réponse** : le temps total, le délai avant le premier mot et le nombre de caractères, pour juger rapidité et longueur.
+- **La conversation continue** : chaque modèle se souvient de ses propres réponses. **Nouvelle comparaison** repart de zéro, et chaque comparaison est enregistrée dans l'historique.
+
+### 🔎 La recherche rapide
+
+<p align="center">
+  <img src="docs/search.png?v=1795435938" alt="Recherche rapide" width="860">
+</p>
+
+- `Ctrl+K` (ou la loupe) ouvre une fenêtre au centre : tape quelques lettres pour retrouver une discussion par son titre.
+- **Actions rapides** : par exemple « Nouveau chat » avec son raccourci.
+- **Onglets du bas** : *Tout*, *Actions* ou *Chats* pour filtrer les résultats.
 
 ## 🚀 Installation
 
@@ -140,10 +250,10 @@ ChatLocal/
 ├── database/          base SQLite et chiffrement des clés
 ├── styles/            thème sombre (dark.qss)
 ├── assets/            polices et icônes SVG
-├── scripts/           icônes, application Windows et capture d'écran
+├── scripts/           logo, application Windows, captures d'écran du README
 ├── download/          ChatLocal (application prête à l'emploi)
 ├── tests/             tests automatiques
-└── docs/              images du README
+└── docs/              captures d'écran du README
 ```
 
 ## ⚙️ Configuration
