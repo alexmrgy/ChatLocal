@@ -182,6 +182,8 @@ Chaque capture est suivie de l'explication de ses différentes parties.
 > - **Débloquer le fichier** : clic droit sur le fichier **ChatLocal** téléchargé → **Propriétés** → coche **Débloquer** en bas → **OK**
 >   (ou **Informations complémentaires** → **Exécuter quand même** pour SmartScreen).
 > - **Sans exécutable** : installe Python, puis lance `ChatLocal.pyw` (double-clic), voir la section ci-dessous.
+>
+> Pourquoi ? Windows 11 (fonction *Smart App Control*) bloque les applications qui n'ont pas de signature numérique payante. Le code est entièrement visible dans ce dépôt, et `ChatLocal.pyw` fonctionne sans cette limite.
 
 ### 🧑‍💻 Depuis le code source
 

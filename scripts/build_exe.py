@@ -28,6 +28,7 @@ cmd = [
 ]
 if icon.exists():
     cmd += ["--icon", str(icon)]
+cmd += ["--version-file", str(ROOT / "scripts" / "version_info.txt")]   # nom, description, version : moins suspect
 cmd.append(str(ROOT / "main.py"))
 
 print(" ".join(cmd))
