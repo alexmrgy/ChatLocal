@@ -20,7 +20,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795433048" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795433176" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
@@ -64,6 +64,18 @@ python main.py
 
 > 💡 `gemma3` n'est qu'un exemple : n'importe quel modèle Ollama fonctionne.
 
+### 📦 Créer l'exécutable Windows (.exe)
+
+Un seul fichier `ChatLocal.exe`, sans console et avec son icône, à lancer par double-clic :
+
+```powershell
+pip install pyinstaller
+python scripts/build_exe.py
+```
+
+Le résultat se trouve dans `dist/ChatLocal.exe` (environ 40 Mo). Ollama doit toujours être installé séparément,
+et Python doit être installé si tu veux lancer du code Python depuis le terminal intégré.
+
 ## ⌨️ Raccourcis
 
 <details open>
@@ -102,7 +114,7 @@ ChatLocal/
 ├── database/          base SQLite et chiffrement des clés
 ├── styles/            thème sombre (dark.qss)
 ├── assets/            polices et icônes SVG
-├── scripts/           génération des icônes et de la capture d'écran
+├── scripts/           icônes, exécutable (.exe) et capture d'écran
 ├── tests/             tests automatiques
 └── docs/              images du README
 ```

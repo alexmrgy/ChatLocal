@@ -14,6 +14,14 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QV
 from . import theme
 from .widgets import IconButton
 
+def python_executable() -> str | None:
+    """Python à utiliser pour lancer le code de l'IA. Dans l'exécutable (.exe), sys.executable est l'application
+    elle-même : on cherche alors le Python installé sur le PC."""
+    if not getattr(sys, "frozen", False):
+        return sys.executable
+    return shutil.which("python") or shutil.which("py")
+
+
 OUT, ERR, INFO, OK, BAD = "#e6e6e6", "#ff8a80", "#7aa7ff", "#4ade80", "#ff6b6b"
 
 PY_LANGS = {"python", "py", "python3", "py3"}
@@ -163,7 +171,12 @@ class Terminal(QWidget):
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(code)
             self.line(f"$ python main.py", INFO)
-            self._start(sys.executable, ["-u", path], "run", wd)
+            py = python_executable()
+            if not py:
+                self.line("Python est introuvable sur cet ordinateur : installe-le (python.org) pour lancer du code "
+                          "Python.", BAD)
+                return
+            self._start(py, ["-u", path], "run", wd)
         else:
             cc = find_c_compiler()
             if not cc:
