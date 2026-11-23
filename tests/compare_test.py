@@ -69,9 +69,10 @@ win.models = ["alpha", "beta"]
 win.poller.models.disconnect()
 win.poller.running.disconnect()
 win.input.set_models(["alpha", "beta"], True)
-win.show_compare()
+win.sidebar.compare.click()          # bouton de la barre latérale
 pump(200)
 c = win.compare
+check("bouton de la sidebar coché", win.sidebar.compare.isChecked())
 check("page de comparaison affichée", win.stack.currentIndex() == mw.COMPARE)
 check("deux modèles différents présélectionnés", c.combo_a.currentData() != c.combo_b.currentData() and c.combo_a.count() == 2)
 
@@ -96,6 +97,12 @@ check("statistiques affichées", "caractères" in c.side_a.stats.text() and "car
 check("A (plus rapide) a fini avant B", c.side_a.first and c.side_a.first < c.side_b.first + 0.5)
 pump(300)
 win.grab().save(str(OUT / "shot_compare.png"))
+
+win.sidebar.home.click()
+pump(200)
+check("retour accueil décoche le bouton", not win.sidebar.compare.isChecked())
+win.sidebar.compare.click()
+pump(200)
 
 # arrêt en cours de route
 c.edit.setPlainText("Encore")

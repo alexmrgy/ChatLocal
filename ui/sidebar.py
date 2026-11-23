@@ -18,6 +18,7 @@ class Sidebar(QWidget):
     homeClicked = Signal()
     historyClicked = Signal()
     managerClicked = Signal()
+    compareClicked = Signal()
     moreClicked = Signal(QPoint)
 
     def __init__(self, parent=None):
@@ -38,9 +39,12 @@ class Sidebar(QWidget):
         self.manager = IconButton("list", tooltip="Toutes les discussions (Ctrl+Maj+L)", **kw)
         self.manager.setCheckable(True)
         self.manager.clicked.connect(self.managerClicked)
+        self.compare = IconButton("library", tooltip="Comparer deux modèles (Ctrl+Maj+M)", **kw)
+        self.compare.setCheckable(True)
+        self.compare.clicked.connect(self.compareClicked)
         self.more = IconButton("dots", tooltip="Plus", **kw)
         self.more.clicked.connect(lambda: self.moreClicked.emit(self.more.mapToGlobal(QPoint(self.more.width() + 6, 0))))
-        for b in (self.home, self.history, self.manager, self.more):
+        for b in (self.home, self.history, self.manager, self.compare, self.more):
             col.addWidget(b)
         col.addStretch(1)
 
@@ -51,6 +55,10 @@ class Sidebar(QWidget):
     def set_manager_checked(self, on: bool) -> None:
         self.manager.setChecked(on)
         self.manager.update()
+
+    def set_compare_checked(self, on: bool) -> None:
+        self.compare.setChecked(on)
+        self.compare.update()
 
     def set_home_checked(self, on: bool) -> None:
         self.home.setChecked(on)

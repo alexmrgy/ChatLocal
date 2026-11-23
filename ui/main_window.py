@@ -125,6 +125,7 @@ class MainWindow(QWidget):
         self.sidebar.homeClicked.connect(self.new_chat)
         self.sidebar.historyClicked.connect(self.toggle_history)
         self.sidebar.managerClicked.connect(self.show_manager)
+        self.sidebar.compareClicked.connect(self.show_compare)
         self.sidebar.moreClicked.connect(self._more_menu)
         body.addWidget(self.sidebar)
 
@@ -259,6 +260,7 @@ class MainWindow(QWidget):
         self.input.show()
         self.input.focus_input()
         self.sidebar.set_manager_checked(False)
+        self.sidebar.set_compare_checked(False)
         self._refresh_topbar()
 
     def _act(self, text, slot, shortcut=None) -> QAction:
@@ -465,6 +467,7 @@ class MainWindow(QWidget):
         self.stack.setCurrentIndex(COMPARE)
         self.sidebar.set_home_checked(False)
         self.sidebar.set_manager_checked(False)
+        self.sidebar.set_compare_checked(True)
         self._refresh_topbar()
         self.compare.edit.setFocus()
         if len(models) < 2:
@@ -769,6 +772,7 @@ class MainWindow(QWidget):
         self.stack.setCurrentIndex(MANAGER)
         self.sidebar.set_home_checked(False)
         self.sidebar.set_manager_checked(True)
+        self.sidebar.set_compare_checked(False)
         self._refresh_topbar()
 
     # ---- actions groupées ----
