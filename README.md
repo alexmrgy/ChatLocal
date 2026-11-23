@@ -28,7 +28,7 @@ Discute avec tes modèles locaux <a href="https://ollama.com">Ollama</a> ou avec
   <a href="#️-structure">Structure</a>
 </p>
 
-<img src="docs/screenshot.png?v=1795434028" alt="Capture d'écran de ChatLocal" width="820">
+<img src="docs/screenshot.png?v=1795434082" alt="Capture d'écran de ChatLocal" width="820">
 
 </div>
 
