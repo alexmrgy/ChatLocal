@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import textwrap
 
-from PySide6.QtCore import QEvent, QPoint, QRectF, Qt, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QRectF, Qt, QVariantAnimation, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QKeyEvent, QPainter
 from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea,
                                QTextEdit, QVBoxLayout, QWidget)
@@ -381,7 +381,19 @@ class InputBar(QFrame):
         below = top_left.y() + btn.height() + 8
         y = below if below + popup.height() <= screen.bottom() else max(screen.top() + 8, top_left.y() - popup.height() - 8)
         popup.move(x, y)
+        popup.setWindowOpacity(0.0)
         popup.show()
+        anim = QVariantAnimation(popup)       # apparition douce : fondu + léger glissement
+        anim.setDuration(230)
+        anim.setEasingCurve(QEasingCurve.OutCubic)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+
+        def step(t, x=x, y=y):
+            popup.setWindowOpacity(t)
+            popup.move(x, int(y + (8 if y < top_left.y() else -8) * (1.0 - t)))
+        anim.valueChanged.connect(step)
+        anim.start()
         self._popup = popup
 
 
@@ -397,16 +409,15 @@ class _ModelRow(QWidget):
         self._rename = rename
         if tip:
             self.setToolTip(tip)
-        self.setFixedHeight(30 if kind == "header" else 38)
+        self.setFixedHeight(24 if kind == "header" else 30)
         self.setEnabled(enabled and kind != "header")
         if self.isEnabled():
             self.setCursor(Qt.PointingHandCursor)
         f = QFont(self.font())
-        f.setPixelSize(12 if kind == "header" else 15)
-        if kind == "header":
-            f.setBold(True)
+        f.setPixelSize(11 if kind == "header" else 13)
+        f.setWeight(QFont.DemiBold if kind == "header" else QFont.Medium)
         self.setFont(f)
-        pad = {"item": 76 + (34 if rename else 0), "action": 96}.get(kind, 60)
+        pad = {"item": 48 + (28 if rename else 0), "action": 64}.get(kind, 36)
         self.setMinimumWidth(min(420, QFontMetrics(f).horizontalAdvance(text) + pad))
 
     def enterEvent(self, e) -> None:
@@ -419,7 +430,7 @@ class _ModelRow(QWidget):
 
     def mouseReleaseEvent(self, e) -> None:
         if self.isEnabled() and e.button() == Qt.LeftButton:
-            if self._rename and e.position().x() >= self.width() - 40:
+            if self._rename and e.position().x() >= self.width() - 34:
                 self.renameClicked.emit()      # clic sur le crayon
             else:
                 self.clicked.emit()
@@ -433,29 +444,29 @@ class _ModelRow(QWidget):
         p.setRenderHint(QPainter.Antialiasing)
         if self._hover and self.isEnabled():
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor("#363737"))
-            p.drawRoundedRect(QRectF(self.rect()), 9, 9)
-        x = 14
+            p.setBrush(QColor(255, 255, 255, 22))
+            p.drawRoundedRect(QRectF(self.rect()), 8, 8)
+        x = 10
         if self._kind == "header":
             p.setPen(QColor(theme.TEXT_MUTE))
         elif self._kind == "action":
             p.setPen(QColor(theme.TEXT_DIM if self.isEnabled() else theme.TEXT_MUTE))
             if self._icon:
-                pm = icon_pixmap(self._icon, theme.TEXT_DIM, 17, self.devicePixelRatioF())
-                p.drawPixmap(x, (self.height() - 17) // 2, pm)
-                x += 27
+                pm = icon_pixmap(self._icon, theme.TEXT_DIM, 15, self.devicePixelRatioF())
+                p.drawPixmap(x, (self.height() - 15) // 2, pm)
+                x += 24
         else:
             p.setPen(QColor(theme.TEXT if self.isEnabled() else theme.TEXT_MUTE))
         fm = p.fontMetrics()
-        txt = fm.elidedText(self._text, Qt.ElideMiddle, self.width() - x - 44 - (34 if self._rename else 0))
+        txt = fm.elidedText(self._text, Qt.ElideMiddle, self.width() - x - (32 if self._kind == "item" else 12) - (28 if self._rename else 0))
         p.drawText(x, 0, self.width() - x, self.height(), Qt.AlignVCenter | Qt.AlignLeft, txt)
-        shift = 34 if self._rename else 0
+        shift = 28 if self._rename else 0
         if self._checked:
-            pm = icon_pixmap("check", theme.TEXT, 18, self.devicePixelRatioF())
-            p.drawPixmap(self.width() - 14 - 18 - shift, (self.height() - 18) // 2, pm)
+            pm = icon_pixmap("check", theme.TEXT, 15, self.devicePixelRatioF())
+            p.drawPixmap(self.width() - 10 - 15 - shift, (self.height() - 15) // 2, pm)
         if self._rename and self._hover:
-            pm = icon_pixmap("pencil", theme.TEXT_DIM, 16, self.devicePixelRatioF())
-            p.drawPixmap(self.width() - 12 - 16, (self.height() - 16) // 2, pm)
+            pm = icon_pixmap("pencil", theme.TEXT_DIM, 14, self.devicePixelRatioF())
+            p.drawPixmap(self.width() - 10 - 14, (self.height() - 14) // 2, pm)
 
 
 class ModelPopup(QWidget):
@@ -477,7 +488,7 @@ class ModelPopup(QWidget):
         body = QFrame(objectName="ModelPopupBody")
         outer.addWidget(body)
         v = QVBoxLayout(body)
-        v.setContentsMargins(6, 6, 6, 6)
+        v.setContentsMargins(5, 5, 5, 5)
         v.setSpacing(0)
 
         self._rows = []        # (ligne, texte filtrable)
@@ -488,7 +499,7 @@ class ModelPopup(QWidget):
             self.search.setPlaceholderText("Rechercher un modèle")
             self.search.textChanged.connect(self._filter)
             v.addWidget(self.search)
-            v.addSpacing(4)
+            v.addSpacing(3)
 
         content = QWidget(objectName="ModelContent")
         cl = QVBoxLayout(content)
@@ -510,14 +521,14 @@ class ModelPopup(QWidget):
         scroll.setWidget(content)
         h = content.sizeHint().height()
         scroll.setFixedHeight(min(h, self.MAX_LIST_H))
-        scroll.setMinimumWidth(max(240, content.sizeHint().width() + (12 if h > self.MAX_LIST_H else 0)))
+        scroll.setMinimumWidth(max(200, content.sizeHint().width() + (12 if h > self.MAX_LIST_H else 0)))
         v.addWidget(scroll)
 
         line = QFrame(objectName="ModelLine")
         line.setFixedHeight(1)
-        v.addSpacing(4)
+        v.addSpacing(3)
         v.addWidget(line)
-        v.addSpacing(4)
+        v.addSpacing(3)
         if has_key:
             for text, icon, sig in (("Modifier la clé API NVIDIA", "key", self.addKey),
                                     ("Supprimer la clé API NVIDIA", "trash", self.removeKey)):
