@@ -8,8 +8,8 @@ import json
 import os
 import sys
 
-from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QRect, Qt, QTimer
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPoint, QRectF, QPropertyAnimation, QRect, QVariantAnimation, Qt, QTimer
+from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter, QPen
 from PySide6.QtWidgets import (QGraphicsOpacityEffect, QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QMessageBox, QStackedWidget,
                                QVBoxLayout, QWidget)
 
@@ -55,6 +55,58 @@ class Toast(QLabel):
         self.show()
         self.raise_()
         self._t.start(ms)
+
+
+class DashedBorder(QWidget):
+    """Contour en pointillés tout autour du panneau (chat éphémère), apparition/disparition en fondu."""
+    RADIUS = 12
+
+    def __init__(self, panel: QWidget):
+        super().__init__(panel)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self._panel = panel
+        self._op = 0.0
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(380)
+        self._anim.setEasingCurve(QEasingCurve.InOutSine)
+        self._anim.valueChanged.connect(self._set)
+        panel.installEventFilter(self)
+        self.setGeometry(panel.rect())
+        self.hide()
+
+    def eventFilter(self, obj, ev) -> bool:
+        if obj is self._panel and ev.type() == QEvent.Resize:
+            self.setGeometry(self._panel.rect())
+        return False
+
+    def _set(self, v) -> None:
+        self._op = float(v)
+        self.setVisible(self._op > 0.0 or self._anim.endValue() == 1.0)
+        self.update()
+
+    def fade(self, on: bool) -> None:
+        self._anim.stop()
+        self._anim.setStartValue(self._op)
+        self._anim.setEndValue(1.0 if on else 0.0)
+        if on:
+            self.show()
+            self.raise_()
+        self._anim.finished.connect(self._done, Qt.UniqueConnection)
+        self._anim.start()
+
+    def _done(self) -> None:
+        if self._op <= 0.0:
+            self.hide()
+
+    def paintEvent(self, e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        pen = QPen(QColor(255, 255, 255, int(120 * self._op)), 1.5)
+        pen.setStyle(Qt.CustomDashLine)
+        pen.setDashPattern([4, 4])
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawRoundedRect(QRectF(self.rect()).adjusted(1.5, 1.5, -1.5, -1.5), self.RADIUS, self.RADIUS)
 
 
 class MainWindow(QWidget):
@@ -246,6 +298,7 @@ class MainWindow(QWidget):
             pass
         self.input.nvidiaKeyRemove.connect(self.remove_nvidia_key)
         self.home.input_slot.addWidget(self.input)
+        self.dashed = DashedBorder(self.panel)
         self.toast = Toast(self.panel)
 
         self.palette = SearchPalette(self)
@@ -762,6 +815,7 @@ class MainWindow(QWidget):
         self.ephemeral = on
         self.topbar.set_ephemeral(on)
         self.home.set_ephemeral(on)
+        self.dashed.fade(on)
 
     def toggle_ephemeral(self) -> None:
         """Bascule chat éphémère : rien n'est enregistré (ni base, ni historique)."""
@@ -782,6 +836,7 @@ class MainWindow(QWidget):
         ov.setAttribute(Qt.WA_TransparentForMouseEvents)
         ov.show()
         ov.raise_()
+        self.dashed.raise_()
         self._fade_overlay = ov
 
     def _crossfade_end(self) -> None:
