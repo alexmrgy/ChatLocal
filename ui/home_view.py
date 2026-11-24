@@ -1,6 +1,8 @@
 """Barre supérieure du panneau principal + page d'accueil (titre, saisie, raccourcis)."""
 from __future__ import annotations
 
+import random
+
 from PySide6.QtCore import QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QFontMetrics, QIcon
 from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget)
@@ -10,6 +12,19 @@ from .icons import icon_pixmap
 from .widgets import IconButton
 
 HOME_COLUMN = 640
+
+GREETINGS = [
+    "Comment puis-je vous aider ?",
+    "Par quoi commençons-nous ?",
+    "Que voulez-vous faire aujourd'hui ?",
+    "Une question ? Je vous écoute.",
+    "Sur quoi travaillons-nous ?",
+    "Prêt quand vous l'êtes.",
+    "Quoi de neuf ?",
+    "Qu'avez-vous en tête ?",
+    "Dites-moi tout.",
+    "Un projet, une idée, un doute ?",
+]
 
 SHORTCUTS = [
     ("image_plus", "Créer une image ou un sticker", "Décris en détail l'image ou le sticker à créer : "),
@@ -96,18 +111,31 @@ class HomePage(QWidget):
     shortcutClicked = Signal(str)
 
     def set_ephemeral(self, on: bool) -> None:
-        self.heading.setText("Chat éphémère" if on else "Comment puis-je vous aider ?")
+        self._ephemeral = on
+        self.heading.setText("Chat éphémère" if on else self._greeting)
         self.subtitle.setText("Cette conversation n'apparaîtra pas dans ton historique et ne sera pas enregistrée."
                               if on else "")
         self.subtitle.setVisible(on)
 
+    def _new_greeting(self) -> None:
+        """Tire une nouvelle phrase d'accueil, différente de la précédente."""
+        self._greeting = random.choice([g for g in GREETINGS if g != self._greeting] or GREETINGS)
+        if not self._ephemeral:
+            self.heading.setText(self._greeting)
+
+    def showEvent(self, e) -> None:
+        super().showEvent(e)
+        self._new_greeting()
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._ephemeral = False
+        self._greeting = ""
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(0)
         v.addStretch(8)
-        self.heading = QLabel("Comment puis-je vous aider ?", objectName="Heading")
+        self.heading = QLabel(random.choice(GREETINGS), objectName="Heading")
         self.heading.setAlignment(Qt.AlignCenter)
         v.addWidget(self.heading)
         self.subtitle = QLabel(objectName="HeadingSub")
