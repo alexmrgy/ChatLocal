@@ -107,7 +107,7 @@ QPushButton#Shortcut:hover { color: #ffffff; background: #222324; }
 /* barre de saisie */
 QFrame#InputBar { background: #363636; border-radius: 23px; }
 QTextEdit#PromptEdit {
-    background: transparent; border: none; color: #ececec; font-size: 15px;
+    background: transparent; border: none; color: #ececec; font-size: 16px; font-weight: 700;
     selection-background-color: rgba(86, 140, 255, 105); selection-color: #ffffff;
 }
 QPushButton#ModelBtn {
