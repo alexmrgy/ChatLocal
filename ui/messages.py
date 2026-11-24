@@ -621,7 +621,12 @@ class ChatView(QScrollArea):
     def eventFilter(self, obj, ev) -> bool:
         t = ev.type()
         if t == QEvent.MouseButtonPress:
-            if obj is not self.pill and not (isinstance(obj, QWidget) and self.pill.isAncestorOf(obj)):
+            # on juge d'après le widget réellement sous le curseur (le filtre voit aussi la fenêtre mère)
+            try:
+                under = QApplication.widgetAt(ev.globalPosition().toPoint())
+            except AttributeError:
+                under = obj if isinstance(obj, QWidget) else None
+            if under is not self.pill and not (under is not None and self.pill.isAncestorOf(under)):
                 self.pill.hide()
         elif t == QEvent.MouseButtonRelease and isinstance(obj, QWidget) and ev.button() == Qt.LeftButton:
             tb = obj.parent()
