@@ -218,12 +218,13 @@ class InputBar(QFrame):
         return self._model
 
     # ----- extrait sélectionné (joint au prochain message) -----
-    def set_quote(self, text: str) -> None:
+    def set_quote(self, text: str, focus: bool = True) -> None:
         self._quote = text.strip()
         self.quote_chip.set_text(self._quote)
         self.quote_chip.setVisible(bool(self._quote))
         self._sync_action()
-        self.edit.setFocus()
+        if focus:
+            self.edit.setFocus()
 
     def quote(self) -> str:
         return self._quote

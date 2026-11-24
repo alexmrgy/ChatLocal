@@ -263,7 +263,7 @@ class MainWindow(QWidget):
         self.chat.editSubmitted.connect(self.edit_prompt)
         self.chat.versionRequested.connect(self.switch_version)
         self.chat.assistantEdited.connect(self._on_assistant_edited)
-        self.chat.quoteRequested.connect(lambda text: self.input.set_quote(text))
+        self.chat.quoteRequested.connect(lambda text: self.input.set_quote(text, focus=False))
         cv.addWidget(self.chat, 1)
         self.chat_slot_widget, self.chat_slot = centered_slot(COLUMN_MAX, (24, 4, 24, 18))
         cv.addWidget(self.chat_slot_widget)
