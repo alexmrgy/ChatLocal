@@ -74,20 +74,20 @@ QPushButton#PaletteTab:checked { background: #2a2a2a; color: #ffffff; font-weigh
 
 /* fenêtre de saisie (dossiers) */
 QWidget#PromptOverlay, QFrame#PromptCard { background: transparent; border: none; }
-QLabel#PromptTitle { font-size: 19px; font-weight: 700; color: #f2f2f2; background: transparent; }
-QLabel#PromptSubtitle { font-size: 14px; color: #8a8a8a; background: transparent; }
+QLabel#PromptTitle { font-size: 15px; font-weight: 700; color: #f2f2f2; background: transparent; }
+QLabel#PromptSubtitle { font-size: 12px; color: #8a8a8a; background: transparent; }
 QLineEdit#PromptEdit {
-    background: #202020; border: 1px solid #333333; border-radius: 12px; padding: 9px 13px;
-    font-size: 15px; color: #ececec; selection-background-color: rgba(86, 140, 255, 105); selection-color: #ffffff;
+    background: #202020; border: 1px solid #333333; border-radius: 10px; padding: 7px 11px;
+    font-size: 13px; color: #ececec; selection-background-color: rgba(86, 140, 255, 105); selection-color: #ffffff;
 }
 QLineEdit#PromptEdit:focus { border: 1px solid #4867be; }
 QPushButton#PromptCancel {
-    background: #2a2a2a; color: #d4d4d4; border: none; border-radius: 18px; padding: 0 20px; font-size: 15px;
+    background: #2a2a2a; color: #d4d4d4; border: none; border-radius: 10px; padding: 0 16px; font-size: 13px; font-weight: 600;
 }
 QPushButton#PromptCancel:hover { background: #343434; color: #ffffff; }
 QPushButton#PromptOk {
-    background: #ececec; color: #181818; border: none; border-radius: 18px; padding: 0 22px;
-    font-size: 15px; font-weight: 600;
+    background: #ececec; color: #181818; border: none; border-radius: 10px; padding: 0 18px;
+    font-size: 13px; font-weight: 600;
 }
 QPushButton#PromptOk:hover { background: #ffffff; }
 QPushButton#PromptOk:disabled { background: #3a3a3a; color: #7a7a7a; }

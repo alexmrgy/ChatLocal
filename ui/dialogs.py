@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Callable
 
 from PySide6.QtCore import (QEasingCurve, QEvent, QParallelAnimationGroup, QPoint, QPropertyAnimation, QRectF, Qt,
-                            Signal)
+                            QVariantAnimation, Signal)
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QLineEdit, QPushButton,
                                QVBoxLayout, QWidget)
@@ -13,7 +13,7 @@ from . import theme
 from .glass import blurred_backdrop, paint_overlay
 from .icons import icon_pixmap
 
-CARD_W, CARD_H = 360, 268
+CARD_W, CARD_H = 320, 222
 
 
 class _Badge(QWidget):
@@ -23,7 +23,7 @@ class _Badge(QWidget):
         super().__init__(parent)
         self._icon = icon
         self._danger = False
-        self.setFixedSize(46, 46)
+        self.setFixedSize(38, 38)
 
     def set_icon(self, icon: str, danger: bool = False) -> None:
         self._icon, self._danger = icon, danger
@@ -34,9 +34,9 @@ class _Badge(QWidget):
         p.setRenderHint(QPainter.Antialiasing)
         p.setPen(Qt.NoPen)
         p.setBrush(QColor(255, 107, 107, 44) if self._danger else QColor(42, 42, 42))
-        p.drawRoundedRect(QRectF(self.rect()), 15, 15)
-        pm = icon_pixmap(self._icon, "#ff6b6b" if self._danger else theme.TEXT, 24, self.devicePixelRatioF())
-        p.drawPixmap((self.width() - 24) // 2, (self.height() - 24) // 2, pm)
+        p.drawRoundedRect(QRectF(self.rect()), 12, 12)
+        pm = icon_pixmap(self._icon, "#ff6b6b" if self._danger else theme.TEXT, 20, self.devicePixelRatioF())
+        p.drawPixmap((self.width() - 20) // 2, (self.height() - 20) // 2, pm)
 
 
 class TextPrompt(QWidget):
@@ -52,11 +52,11 @@ class TextPrompt(QWidget):
         self.card = QFrame(self, objectName="PromptCard")
         self.card.setFixedSize(CARD_W, CARD_H)
         v = QVBoxLayout(self.card)
-        v.setContentsMargins(24, 22, 24, 20)
+        v.setContentsMargins(20, 18, 20, 16)
         v.setSpacing(0)
         self.badge = _Badge("folder_open")
         v.addWidget(self.badge, 0, Qt.AlignHCenter)
-        v.addSpacing(12)
+        v.addSpacing(10)
         self.title = QLabel(objectName="PromptTitle")
         self.title.setAlignment(Qt.AlignCenter)
         v.addWidget(self.title)
@@ -65,34 +65,37 @@ class TextPrompt(QWidget):
         self.subtitle.setAlignment(Qt.AlignCenter)
         self.subtitle.setWordWrap(True)
         v.addWidget(self.subtitle)
-        v.addSpacing(16)
+        v.addSpacing(14)
         self.edit = QLineEdit(objectName="PromptEdit")
         self.edit.textChanged.connect(self._sync)
         self.edit.returnPressed.connect(self._submit)
         self.edit.installEventFilter(self)
         v.addWidget(self.edit)
         v.addStretch(1)
+        v.addSpacing(14)
         row = QHBoxLayout()
-        row.setSpacing(10)
+        row.setSpacing(8)
         self.cancel = QPushButton("Annuler", objectName="PromptCancel")
         self.ok = QPushButton(objectName="PromptOk")
         for b in (self.cancel, self.ok):
             b.setCursor(Qt.PointingHandCursor)
             b.setFocusPolicy(Qt.NoFocus)
-            b.setFixedHeight(36)
+            b.setFixedHeight(32)
             row.addWidget(b, 1)
         self.cancel.clicked.connect(self.close_prompt)
         self.ok.clicked.connect(self._submit)
         v.addLayout(row)
 
-        self._fx = QGraphicsOpacityEffect(self)
+        self._op = 0.0
+        self._fx = QGraphicsOpacityEffect(self.card)
         self._fx.setOpacity(0.0)
-        self.setGraphicsEffect(self._fx)
+        self.card.setGraphicsEffect(self._fx)
         self._anim = QParallelAnimationGroup(self)
-        self._fade = QPropertyAnimation(self._fx, b"opacity", self)
+        self._fade = QVariantAnimation(self)
+        self._fade.valueChanged.connect(self._set_op)
         self._slide = QPropertyAnimation(self.card, b"pos", self)
         for a in (self._fade, self._slide):
-            a.setDuration(190)
+            a.setDuration(240)
             a.setEasingCurve(QEasingCurve.OutCubic)
             self._anim.addAnimation(a)
         self._anim.finished.connect(self._done)
@@ -148,7 +151,7 @@ class TextPrompt(QWidget):
     def _run(self, opening: bool) -> None:
         self._anim.stop()
         base = QPoint((self.width() - self.card.width()) // 2, self._y())
-        self._fade.setStartValue(self._fx.opacity())
+        self._fade.setStartValue(self._op)
         self._fade.setEndValue(1.0 if opening else 0.0)
         self._slide.setStartValue(base + QPoint(0, 14) if opening else self.card.pos())
         self._slide.setEndValue(base if opening else base + QPoint(0, 10))
@@ -160,8 +163,14 @@ class TextPrompt(QWidget):
             self._closing = False
             self.parentWidget().setFocus()
 
+    def _set_op(self, v) -> None:
+        self._op = float(v)
+        self._fx.setOpacity(self._op)
+        self.update()
+
     def paintEvent(self, e) -> None:
         p = QPainter(self)
+        p.setOpacity(self._op)
         paint_overlay(p, self.rect(), self.card.geometry(), self._backdrop)
         p.end()
 
@@ -234,7 +243,7 @@ class ConfirmDialog(TextPrompt):
     def __init__(self, parent: QWidget):
         super().__init__(parent)
         self.edit.hide()
-        self.card.setFixedSize(380, 290)
+        self.card.setFixedSize(330, 262)
         self.setFocusPolicy(Qt.StrongFocus)
         v = self.card.layout()
         self.check = _Check("Ne plus me demander")
