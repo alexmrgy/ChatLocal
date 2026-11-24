@@ -643,9 +643,17 @@ class ChatView(QScrollArea):
         if not ok:
             self.pill.hide()
             return
-        # dès la sélection : l'extrait est joint à l'input (carte « Sélection »), sans clic droit ni pastille.
-        # La sélection reste affichée pour pouvoir encore la copier.
-        self.quoteRequested.emit(self.selected_text(tb))
+        self._sel_tb = tb
+        self._sel_text = self.selected_text(tb)      # copie : l'appui sur la pastille ne doit pas la perdre
+        pos = self.mapFromGlobal(gp)
+        w, h = self.pill.width(), self.pill.height()
+        x = max(8, min(pos.x() - w // 2, self.width() - w - 8))
+        y = pos.y() - h - 14
+        if y < 6:
+            y = pos.y() + 20
+        self.pill.move(x, y)
+        self.pill.show()
+        self.pill.raise_()
 
     def ask_from(self, tb: QTextBrowser) -> None:
         """Joint la sélection de `tb` au prochain message (clic droit ou pastille)."""
