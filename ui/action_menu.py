@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable
 
-from PySide6.QtCore import QPoint, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QEasingCurve, QPoint, QRectF, Qt, QTimer, QVariantAnimation, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PySide6.QtWidgets import QApplication, QFrame, QVBoxLayout, QWidget
 
@@ -168,4 +168,17 @@ class ActionMenu(QWidget):
         if y + self.height() > g.bottom() - 8:
             y = max(g.top() + 8, g.bottom() - self.height() - 8)
         self.move(x, y)
+        # apparition douce : fondu + léger glissement vers le bas
+        self.setWindowOpacity(0.0)
         self.show()
+        self._open_anim = QVariantAnimation(self)
+        self._open_anim.setDuration(230)
+        self._open_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._open_anim.setStartValue(0.0)
+        self._open_anim.setEndValue(1.0)
+
+        def step(t, x=x, y=y):
+            self.setWindowOpacity(t)
+            self.move(x, int(y - 8 * (1.0 - t)))
+        self._open_anim.valueChanged.connect(step)
+        self._open_anim.start()

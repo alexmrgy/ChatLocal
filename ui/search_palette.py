@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import (QEasingCurve, QEvent, QParallelAnimationGroup, QPoint, QPropertyAnimation, QRectF, Qt,
-                            QTimer, Signal)
+                            QTimer, QVariantAnimation, Signal)
 from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (QButtonGroup, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QLineEdit,
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
@@ -126,14 +126,18 @@ class SearchPalette(QWidget):
         tabs.addStretch(1)
         v.addLayout(tabs)
 
-        self._fx = QGraphicsOpacityEffect(self)
+        # fondu : voile/flou peints avec une opacité animée (pas d'effet sur toute la fenêtre = bien plus fluide),
+        # effet d'opacité limité à la carte seule
+        self._op = 0.0
+        self._fx = QGraphicsOpacityEffect(self.card)
         self._fx.setOpacity(0.0)
-        self.setGraphicsEffect(self._fx)
+        self.card.setGraphicsEffect(self._fx)
         self._anim = QParallelAnimationGroup(self)
-        self._fade = QPropertyAnimation(self._fx, b"opacity", self)
+        self._fade = QVariantAnimation(self)
+        self._fade.valueChanged.connect(self._set_op)
         self._slide = QPropertyAnimation(self.card, b"pos", self)
         for a in (self._fade, self._slide):
-            a.setDuration(190)
+            a.setDuration(260)
             a.setEasingCurve(QEasingCurve.OutCubic)
             self._anim.addAnimation(a)
         self._anim.finished.connect(self._anim_done)
@@ -144,8 +148,15 @@ class SearchPalette(QWidget):
         return ln
 
     # ----- ouverture / fermeture douces -----
+    def _set_op(self, v) -> None:
+        self._op = float(v)
+        self._fx.setOpacity(self._op)
+        self.update()
+
     def paintEvent(self, e) -> None:
-        paint_overlay(QPainter(self), self.rect(), self.card.geometry(), self._backdrop)
+        p = QPainter(self)
+        p.setOpacity(self._op)
+        paint_overlay(p, self.rect(), self.card.geometry(), self._backdrop)
 
     def open(self, convs) -> None:
         self._backdrop = blurred_backdrop(self.parentWidget()) if not self.isVisible() else self._backdrop
@@ -155,11 +166,13 @@ class SearchPalette(QWidget):
         self._tab = 0
         self.setGeometry(self.parentWidget().rect())
         self._layout_card()
-        self._rebuild()
+        self._op = 0.0
+        self._fx.setOpacity(0.0)
         self.show()
         self.raise_()
         self.edit.setFocus()
         self._run(True)
+        QTimer.singleShot(0, self._rebuild)   # le contenu se remplit après le 1er rendu : pas de saccade à l'ouverture
 
     def close_palette(self) -> None:
         if self.isVisible() and not self._closing:
@@ -170,7 +183,7 @@ class SearchPalette(QWidget):
         self._anim.stop()
         end = self.card.pos() if not opening else QPoint(self.card.x(), self._card_y())
         base = QPoint(end.x(), self._card_y())
-        self._fade.setStartValue(self._fx.opacity())
+        self._fade.setStartValue(self._op)
         self._fade.setEndValue(1.0 if opening else 0.0)
         self._slide.setStartValue(base + QPoint(0, 14) if opening else self.card.pos())
         self._slide.setEndValue(base if opening else base + QPoint(0, 10))
