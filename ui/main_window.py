@@ -8,9 +8,9 @@ import json
 import os
 import sys
 
-from PySide6.QtCore import QPoint, QRect, Qt, QTimer
+from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QRect, Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QMessageBox, QStackedWidget,
+from PySide6.QtWidgets import (QGraphicsOpacityEffect, QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QMessageBox, QStackedWidget,
                                QVBoxLayout, QWidget)
 
 import attachments
@@ -766,8 +766,40 @@ class MainWindow(QWidget):
     def toggle_ephemeral(self) -> None:
         """Bascule chat éphémère : rien n'est enregistré (ni base, ni historique)."""
         was = self.ephemeral
+        self._crossfade_begin()
         self._show_new(push=False)          # repart d'un écran d'accueil vierge
         self._set_ephemeral(not was)
+        self._crossfade_end()
+
+    def _crossfade_begin(self) -> None:
+        """Fige l'écran actuel dans une image posée par-dessus le panneau (fondu enchaîné doux)."""
+        old = getattr(self, "_fade_overlay", None)
+        if old is not None:
+            old.deleteLater()
+        ov = QLabel(self.panel)
+        ov.setPixmap(self.panel.grab())
+        ov.setGeometry(self.panel.rect())
+        ov.setAttribute(Qt.WA_TransparentForMouseEvents)
+        ov.show()
+        ov.raise_()
+        self._fade_overlay = ov
+
+    def _crossfade_end(self) -> None:
+        ov = self._fade_overlay
+        fx = QGraphicsOpacityEffect(ov)
+        ov.setGraphicsEffect(fx)
+        anim = QPropertyAnimation(fx, b"opacity", ov)
+        anim.setDuration(380)
+        anim.setStartValue(1.0)
+        anim.setEndValue(0.0)
+        anim.setEasingCurve(QEasingCurve.InOutSine)
+
+        def done(ov=ov):
+            ov.deleteLater()
+            if getattr(self, "_fade_overlay", None) is ov:
+                self._fade_overlay = None
+        anim.finished.connect(done)
+        anim.start()
 
     def _show_new(self, push: bool) -> None:
         self._abort_generation()

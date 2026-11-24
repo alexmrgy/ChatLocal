@@ -594,6 +594,12 @@ class ChatView(QScrollArea):
         self._scroll_anim.setDuration(280)
         self._scroll_anim.setEasingCurve(QEasingCurve.OutCubic)
         self._scroll_anim.finished.connect(self._after_scroll)
+        # défilement à la molette fluide : on accumule une cible et on glisse dessus
+        self._wheel_target = None
+        self._wheel_anim = QPropertyAnimation(sb, b"value", self)
+        self._wheel_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._wheel_anim.setDuration(240)
+        self._wheel_anim.finished.connect(lambda: setattr(self, "_wheel_target", None))
 
     DOWN_THRESHOLD = 120   # distance (px) au bas à partir de laquelle le bouton apparaît
 
@@ -692,6 +698,30 @@ class ChatView(QScrollArea):
 
     def _place_down(self) -> None:
         self.down_btn.move((self.width() - self.down_btn.width()) // 2, self.height() - self.down_btn.height() - 14)
+
+    def wheelEvent(self, e) -> None:
+        sb = self.verticalScrollBar()
+        if e.modifiers() & Qt.ControlModifier:
+            return super().wheelEvent(e)
+        pix = e.pixelDelta().y()
+        if pix:                      # pavé tactile : déjà fluide, on suit le doigt tel quel
+            self._wheel_anim.stop()
+            self._wheel_target = None
+            sb.setValue(sb.value() - pix)
+            e.accept()
+            return
+        dy = e.angleDelta().y()
+        if not dy:
+            return super().wheelEvent(e)
+        self._scroll_anim.stop()
+        base = self._wheel_target if self._wheel_target is not None else sb.value()
+        target = max(sb.minimum(), min(sb.maximum(), base - dy * 1.1))
+        self._wheel_target = target
+        self._wheel_anim.stop()
+        self._wheel_anim.setStartValue(sb.value())
+        self._wheel_anim.setEndValue(int(target))
+        self._wheel_anim.start()
+        e.accept()
 
     def resizeEvent(self, e) -> None:
         super().resizeEvent(e)
