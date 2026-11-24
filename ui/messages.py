@@ -571,8 +571,9 @@ class ChatView(QScrollArea):
         self._stick = True
         # sélection de texte -> pastille « Demander à … »
         self.pill = SelectionPill(self)
-        self.pill.clicked.connect(self._ask_about_selection)
+        self.pill.pressed.connect(self._ask_about_selection)   # dès l'appui : ne dépend pas du relâchement
         self._sel_tb = None
+        self._sel_text = ""
         self._prog = False
         QApplication.instance().installEventFilter(self)
         sb = self.verticalScrollBar()
@@ -643,6 +644,7 @@ class ChatView(QScrollArea):
             self.pill.hide()
             return
         self._sel_tb = tb
+        self._sel_text = self.selected_text(tb)      # copie : l'appui sur la pastille ne doit pas la perdre
         pos = self.mapFromGlobal(gp)
         w, h = self.pill.width(), self.pill.height()
         x = max(8, min(pos.x() - w // 2, self.width() - w - 8))
@@ -660,16 +662,19 @@ class ChatView(QScrollArea):
 
     def _ask_about_selection(self) -> None:
         tb, self._sel_tb = self._sel_tb, None
+        saved, self._sel_text = self._sel_text, ""
         self.pill.hide()
         if tb is None:
             return
+        text = ""
         try:
             text = self.selected_text(tb)
             c = tb.textCursor()
             c.clearSelection()
             tb.setTextCursor(c)
         except RuntimeError:
-            return
+            pass
+        text = text or saved
         if text:
             self.quoteRequested.emit(text)
 
