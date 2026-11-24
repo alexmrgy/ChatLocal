@@ -185,9 +185,9 @@ QPushButton#TitleBtn {
 }
 QPushButton#TitleBtn:hover { background: #262626; }
 QFrame#ActionMenuBody {
-    background: rgba(40, 40, 42, 242); border: 1px solid rgba(255, 255, 255, 30); border-radius: 18px;
+    background: rgba(40, 40, 42, 242); border: 1px solid rgba(255, 255, 255, 30); border-radius: 13px;
 }
-QFrame#ActionMenuLine { background: rgba(255, 255, 255, 26); border: none; margin: 4px 6px; }
+QFrame#ActionMenuLine { background: rgba(255, 255, 255, 20); border: none; margin: 3px 6px; }
 
 /* bouton de confirmation destructif */
 QPushButton#PromptOk[danger="true"] { background: #e5484d; color: #ffffff; }

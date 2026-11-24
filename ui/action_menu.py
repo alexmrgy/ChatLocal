@@ -36,16 +36,17 @@ class _Row(QWidget):
     def __init__(self, item: MenuItem, back: bool = False, parent=None):
         super().__init__(parent)
         self.item, self._back, self._hover = item, back, False
-        self.setFixedHeight(38)
+        self.setFixedHeight(30)
         self.setEnabled(item.enabled)
         if item.enabled:
             self.setCursor(Qt.PointingHandCursor)
         f = QFont(self.font())
-        f.setPixelSize(15)
+        f.setPixelSize(13)
+        f.setWeight(QFont.Medium)
         self.setFont(f)
-        w = QFontMetrics(f).horizontalAdvance(item.text) + 100
+        w = QFontMetrics(f).horizontalAdvance(item.text) + 68
         if item.shortcut:
-            w += QFontMetrics(f).horizontalAdvance(item.shortcut) + 40
+            w += QFontMetrics(f).horizontalAdvance(item.shortcut) + 28
         self.setMinimumWidth(w)
 
     def enterEvent(self, e) -> None:
@@ -67,31 +68,32 @@ class _Row(QWidget):
         if self._hover and self.isEnabled():
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(255, 107, 107, 34) if it.danger else QColor(255, 255, 255, 22))
-            p.drawRoundedRect(QRectF(self.rect()), 11, 11)
+            p.drawRoundedRect(QRectF(self.rect()), 8, 8)
         color = DANGER if it.danger else (theme.TEXT if self.isEnabled() else theme.TEXT_MUTE)
-        x = 14
+        x = 10
         icon = "chevron_left" if self._back else it.icon
         if it.dot:
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(it.dot))
-            p.drawEllipse(QRectF(x + 3, (self.height() - 13) / 2, 13, 13))
+            p.drawEllipse(QRectF(x + 3, (self.height() - 10) / 2, 10, 10))
         elif icon:
-            p.drawPixmap(x, (self.height() - 19) // 2, icon_pixmap(icon, color, 19, self.devicePixelRatioF()))
-        x = 46
+            p.drawPixmap(x, (self.height() - 16) // 2, icon_pixmap(icon, color, 16, self.devicePixelRatioF()))
+        x = 34
         p.setPen(QColor(color))
-        p.drawText(x, 0, self.width() - x - 14, self.height(), Qt.AlignVCenter | Qt.AlignLeft, it.text)
+        p.drawText(x, 0, self.width() - x - 10, self.height(), Qt.AlignVCenter | Qt.AlignLeft, it.text)
         if it.shortcut:
             f = QFont(self.font())
-            f.setPixelSize(13)
+            f.setPixelSize(11)
+            f.setWeight(QFont.Normal)
             p.setFont(f)
             p.setPen(QColor(theme.TEXT_MUTE))
-            p.drawText(0, 0, self.width() - 16, self.height(), Qt.AlignVCenter | Qt.AlignRight, it.shortcut)
+            p.drawText(0, 0, self.width() - 12, self.height(), Qt.AlignVCenter | Qt.AlignRight, it.shortcut)
         elif it.checked:
-            p.drawPixmap(self.width() - 14 - 18, (self.height() - 18) // 2,
-                         icon_pixmap("check", theme.TEXT, 18, self.devicePixelRatioF()))
+            p.drawPixmap(self.width() - 10 - 15, (self.height() - 15) // 2,
+                         icon_pixmap("check", theme.TEXT, 15, self.devicePixelRatioF()))
         elif it.submenu is not None and not self._back:
-            p.drawPixmap(self.width() - 14 - 17, (self.height() - 17) // 2,
-                         icon_pixmap("chevron_right", theme.TEXT_MUTE, 17, self.devicePixelRatioF()))
+            p.drawPixmap(self.width() - 10 - 15, (self.height() - 15) // 2,
+                         icon_pixmap("chevron_right", theme.TEXT_MUTE, 15, self.devicePixelRatioF()))
 
 
 class ActionMenu(QWidget):
@@ -105,8 +107,8 @@ class ActionMenu(QWidget):
         self.body = QFrame(objectName="ActionMenuBody")
         outer.addWidget(self.body)
         self._lay = QVBoxLayout(self.body)
-        self._lay.setContentsMargins(8, 8, 8, 8)
-        self._lay.setSpacing(1)
+        self._lay.setContentsMargins(5, 5, 5, 5)
+        self._lay.setSpacing(0)
         self._build(items)
 
     def _build(self, items: list, back_to: str = "") -> None:
