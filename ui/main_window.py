@@ -18,7 +18,7 @@ from database.db import Database
 from database.db import _load_files as load_files
 from nvidia import client as nvidia_client
 from ollama import client
-from ollama.workers import ChatWorker, ModelsPoller, NvidiaModelsWorker
+from ollama.workers import CallWorker, ChatWorker, ModelsPoller, NvidiaModelsWorker
 
 from .home_view import HomePage, TopBar, centered_slot
 from .code_panel import CodePanel
@@ -292,6 +292,7 @@ class MainWindow(QWidget):
         self.input.refreshRequested.connect(self.refresh_models)
         self.input.nvidiaKeyAdd.connect(self.add_nvidia_key)
         self.input.modelRenameRequested.connect(self.rename_model)
+        self.input.modelDeleteRequested.connect(self.delete_model)
         try:
             self.input.set_aliases(json.loads(self.db.get_setting("model_aliases") or "{}"))
         except ValueError:
@@ -670,7 +671,40 @@ class MainWindow(QWidget):
                       "Les modèles NVIDIA ne seront plus disponibles tant que tu n'en ajoutes pas une nouvelle.",
                       "Supprimer", do, "key")
 
+    def _run_call(self, fn, ok=None, failed=None) -> None:
+        w = CallWorker(fn, self)
+        if ok:
+            w.ok.connect(ok)
+        if failed:
+            w.failed.connect(failed)
+        self._calls = [c for c in getattr(self, "_calls", []) if c.isRunning()] + [w]
+        w.start()
+
+    def delete_model(self, full: str) -> None:
+        """Supprime un modèle Ollama du disque (après confirmation)."""
+        name = self.input.default_name(full)
+        shown = self.input.display_name(full)
+
+        def do() -> None:
+            self.toast.show_message(f"Suppression de {shown}…", 8000)
+
+            def ok() -> None:
+                if self.input.model() == full:
+                    self.input.set_model("")
+                    self.db.set_setting("last_model", "")
+                self.poller.refresh()
+                self.toast.show_message(f"{shown} supprimé", 2500)
+
+            self._run_call(lambda: client.delete_model(name), ok,
+                           lambda msg: self.toast.show_message(msg, 5000))
+
+        self._confirm("delete_model", "Supprimer ce modèle ?",
+                      f"« {shown} » sera effacé de ce PC. Il faudra le télécharger de nouveau pour le réutiliser.",
+                      "Supprimer", do)
+
     def _choose_model(self, name: str) -> None:
+        if name and not name.startswith(nvidia_client.PREFIX):
+            self._run_call(lambda: client.warm_up(name))      # charge le modèle en mémoire dès maintenant
         self.input.set_model(name)
         self.db.set_setting("last_model", name)
         if self.cid is not None:

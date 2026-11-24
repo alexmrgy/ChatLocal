@@ -42,6 +42,44 @@ def list_models(base: str = BASE_URL, timeout: float = 3.0) -> list[str]:
         conn.close()
 
 
+KEEP_ALIVE = "30m"   # le modèle reste chargé en mémoire : plus de rechargement (lent) entre deux messages
+
+
+def delete_model(name: str, base: str = BASE_URL, timeout: float = 30.0) -> None:
+    """DELETE /api/delete : supprime le modèle du disque."""
+    conn = _conn(timeout, base)
+    try:
+        conn.request("DELETE", "/api/delete", body=json.dumps({"model": name}),
+                     headers={"Content-Type": "application/json"})
+        resp = conn.getresponse()
+        data = resp.read().decode("utf-8", "replace")
+        if resp.status != 200:
+            try:
+                data = json.loads(data).get("error", data)
+            except ValueError:
+                pass
+            raise OllamaError(f"Suppression impossible (HTTP {resp.status}) : {data}")
+    except OllamaError:
+        raise
+    except (OSError, http.client.HTTPException) as e:
+        raise OllamaError(f"Ollama injoignable sur {base} ({e})") from e
+    finally:
+        conn.close()
+
+
+def warm_up(name: str, base: str = BASE_URL) -> None:
+    """Charge le modèle en mémoire à l'avance (requête vide) pour que la 1re réponse soit immédiate."""
+    conn = _conn(120, base)
+    try:
+        conn.request("POST", "/api/generate", body=json.dumps({"model": name, "keep_alive": KEEP_ALIVE}),
+                     headers={"Content-Type": "application/json"})
+        conn.getresponse().read()
+    except (OSError, http.client.HTTPException):
+        pass
+    finally:
+        conn.close()
+
+
 class ChatStream:
     """POST /api/chat en streaming. Itérer sur run() ; cancel() est thread-safe."""
 
@@ -67,7 +105,8 @@ class ChatStream:
 
     def run(self) -> Iterator[tuple[str, str]]:
         """Produit ('thinking'|'content', texte)."""
-        body = json.dumps({"model": self.model, "messages": system_prompt.with_time(self.messages), "stream": True})
+        body = json.dumps({"model": self.model, "messages": system_prompt.with_time(self.messages), "stream": True,
+                           "keep_alive": KEEP_ALIVE})
         conn = self._conn = _conn(600, self.base)
         try:
             conn.request("POST", "/api/chat", body=body, headers={"Content-Type": "application/json"})

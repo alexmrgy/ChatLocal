@@ -40,6 +40,27 @@ class ChatWorker(QThread):
         self.done.emit(self._stream.cancelled)
 
 
+class CallWorker(QThread):
+    """Exécute une fonction bloquante hors du thread UI (suppression, préchauffage de modèle…)."""
+    ok = Signal()
+    failed = Signal(str)
+
+    def __init__(self, fn, parent=None):
+        super().__init__(parent)
+        self._fn = fn
+
+    def run(self) -> None:
+        try:
+            self._fn()
+        except client.OllamaError as e:
+            self.failed.emit(str(e))
+            return
+        except Exception as e:
+            self.failed.emit(f"Erreur inattendue : {e}")
+            return
+        self.ok.emit()
+
+
 class NvidiaModelsWorker(QThread):
     """Vérifie une clé NVIDIA en récupérant la liste des modèles (une seule requête)."""
     ok = Signal(str, list)      # (clé, modèles)

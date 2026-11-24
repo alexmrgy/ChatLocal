@@ -128,6 +128,7 @@ class InputBar(QFrame):
     nvidiaKeyAdd = Signal()
     nvidiaKeyRemove = Signal()
     modelRenameRequested = Signal(str)   # identifiant complet du modèle à renommer
+    modelDeleteRequested = Signal(str)   # identifiant complet du modèle Ollama à supprimer
     filesRejected = Signal(str)          # message d'erreur : fichier illisible ou trop gros
 
     def __init__(self, parent=None):
@@ -370,6 +371,7 @@ class InputBar(QFrame):
         names.update({NVIDIA_PREFIX + m: self.display_name(NVIDIA_PREFIX + m) for m in self._nvidia})
         popup = ModelPopup(shown, self._nvidia, self._model, note, self._has_key, self, names)
         popup.renameRequested.connect(self.modelRenameRequested)
+        popup.deleteRequested.connect(self.modelDeleteRequested)
         popup.chosen.connect(self.modelChosen)
         popup.addKey.connect(self.nvidiaKeyAdd)
         popup.removeKey.connect(self.nvidiaKeyRemove)
@@ -401,12 +403,14 @@ class _ModelRow(QWidget):
     """Ligne du menu : modèle (coche à droite, crayon « renommer » au survol), titre de section ou action."""
     clicked = Signal()
     renameClicked = Signal()
+    deleteClicked = Signal()
 
     def __init__(self, text: str, checked: bool = False, enabled: bool = True, kind: str = "item",
-                 icon: str = "", rename: bool = False, tip: str = "", parent=None):
+                 icon: str = "", rename: bool = False, tip: str = "", can_delete: bool = False, parent=None):
         super().__init__(parent)
         self._text, self._checked, self._hover, self._kind, self._icon = text, checked, False, kind, icon
         self._rename = rename
+        self._can_delete = can_delete
         if tip:
             self.setToolTip(tip)
         self.setFixedHeight(24 if kind == "header" else 30)
@@ -417,7 +421,7 @@ class _ModelRow(QWidget):
         f.setPixelSize(11 if kind == "header" else 13)
         f.setWeight(QFont.DemiBold if kind == "header" else QFont.Medium)
         self.setFont(f)
-        pad = {"item": 48 + (28 if rename else 0), "action": 64}.get(kind, 36)
+        pad = {"item": 48 + (28 if rename else 0) + (24 if can_delete else 0), "action": 64}.get(kind, 36)
         self.setMinimumWidth(min(420, QFontMetrics(f).horizontalAdvance(text) + pad))
 
     def enterEvent(self, e) -> None:
@@ -430,7 +434,10 @@ class _ModelRow(QWidget):
 
     def mouseReleaseEvent(self, e) -> None:
         if self.isEnabled() and e.button() == Qt.LeftButton:
-            if self._rename and e.position().x() >= self.width() - 34:
+            x = e.position().x()
+            if self._can_delete and x >= self.width() - 30:
+                self.deleteClicked.emit()      # clic sur la corbeille
+            elif self._rename and x >= self.width() - (54 if self._can_delete else 34):
                 self.renameClicked.emit()      # clic sur le crayon
             else:
                 self.clicked.emit()
@@ -458,14 +465,18 @@ class _ModelRow(QWidget):
         else:
             p.setPen(QColor(theme.TEXT if self.isEnabled() else theme.TEXT_MUTE))
         fm = p.fontMetrics()
-        txt = fm.elidedText(self._text, Qt.ElideMiddle, self.width() - x - (32 if self._kind == "item" else 12) - (28 if self._rename else 0))
+        txt = fm.elidedText(self._text, Qt.ElideMiddle, self.width() - x - (32 if self._kind == "item" else 12) - (28 if self._rename else 0)
+                           - (24 if self._can_delete else 0))
         p.drawText(x, 0, self.width() - x, self.height(), Qt.AlignVCenter | Qt.AlignLeft, txt)
-        shift = 28 if self._rename else 0
+        shift = (28 if self._rename else 0) + (24 if self._can_delete else 0)
         if self._checked:
             pm = icon_pixmap("check", theme.TEXT, 15, self.devicePixelRatioF())
             p.drawPixmap(self.width() - 10 - 15 - shift, (self.height() - 15) // 2, pm)
         if self._rename and self._hover:
             pm = icon_pixmap("pencil", theme.TEXT_DIM, 14, self.devicePixelRatioF())
+            p.drawPixmap(self.width() - 10 - 14 - (24 if self._can_delete else 0), (self.height() - 14) // 2, pm)
+        if self._can_delete and self._hover:
+            pm = icon_pixmap("trash", theme.TEXT_DIM, 14, self.devicePixelRatioF())
             p.drawPixmap(self.width() - 10 - 14, (self.height() - 14) // 2, pm)
 
 
@@ -475,6 +486,7 @@ class ModelPopup(QWidget):
     addKey = Signal()
     removeKey = Signal()
     renameRequested = Signal(str)
+    deleteRequested = Signal(str)
 
     MAX_LIST_H = 360
 
@@ -550,10 +562,13 @@ class ModelPopup(QWidget):
         for n in names:
             full = prefix + n
             shown = self._names.get(full, n)
-            r = _ModelRow(shown, checked=(full == current), rename=True,
-                          tip=(f"{n}\nClic droit ou crayon : renommer" if shown != n else "Clic droit ou crayon : renommer"))
+            local = not prefix     # seuls les modèles Ollama (installés sur le PC) peuvent être supprimés
+            hint = "Clic droit ou crayon : renommer" + (" · corbeille : supprimer" if local else "")
+            r = _ModelRow(shown, checked=(full == current), rename=True, can_delete=local,
+                          tip=(f"{n}\n{hint}" if shown != n else hint))
             r.clicked.connect(lambda f=full: (self.chosen.emit(f), self.close()))
             r.renameClicked.connect(lambda f=full: (self.renameRequested.emit(f), self.close()))
+            r.deleteClicked.connect(lambda f=full: (self.deleteRequested.emit(f), self.close()))
             layout.addWidget(r)
             rows.append(r)
             self._rows.append((r, f"{n} {shown}".lower()))
