@@ -13,7 +13,7 @@ from . import theme
 from .glass import blurred_backdrop, paint_overlay
 from .icons import icon_pixmap
 
-CARD_W, CARD_H = 320, 222
+CARD_W, CARD_H = 340, 168
 
 
 class _Badge(QWidget):
@@ -55,14 +55,13 @@ class TextPrompt(QWidget):
         v.setContentsMargins(20, 18, 20, 16)
         v.setSpacing(0)
         self.badge = _Badge("folder_open")
-        v.addWidget(self.badge, 0, Qt.AlignHCenter)
-        v.addSpacing(10)
+        self.badge.hide()   # pas d'icône décorative : fenêtre sobre
         self.title = QLabel(objectName="PromptTitle")
-        self.title.setAlignment(Qt.AlignCenter)
+        self.title.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         v.addWidget(self.title)
-        v.addSpacing(3)
+        v.addSpacing(2)
         self.subtitle = QLabel(objectName="PromptSubtitle")
-        self.subtitle.setAlignment(Qt.AlignCenter)
+        self.subtitle.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.subtitle.setWordWrap(True)
         v.addWidget(self.subtitle)
         v.addSpacing(14)
@@ -75,13 +74,15 @@ class TextPrompt(QWidget):
         v.addSpacing(14)
         row = QHBoxLayout()
         row.setSpacing(8)
+        row.addStretch(1)
         self.cancel = QPushButton("Annuler", objectName="PromptCancel")
         self.ok = QPushButton(objectName="PromptOk")
         for b in (self.cancel, self.ok):
             b.setCursor(Qt.PointingHandCursor)
             b.setFocusPolicy(Qt.NoFocus)
             b.setFixedHeight(32)
-            row.addWidget(b, 1)
+            b.setMinimumWidth(92)
+            row.addWidget(b)
         self.cancel.clicked.connect(self.close_prompt)
         self.ok.clicked.connect(self._submit)
         v.addLayout(row)
@@ -243,11 +244,11 @@ class ConfirmDialog(TextPrompt):
     def __init__(self, parent: QWidget):
         super().__init__(parent)
         self.edit.hide()
-        self.card.setFixedSize(330, 262)
+        self.card.setFixedSize(350, 196)
         self.setFocusPolicy(Qt.StrongFocus)
         v = self.card.layout()
         self.check = _Check("Ne plus me demander")
-        v.insertWidget(v.indexOf(self.edit), self.check, 0, Qt.AlignHCenter)
+        v.insertWidget(v.indexOf(self.edit), self.check, 0, Qt.AlignLeft)
         self.ok.setProperty("danger", True)
         self._confirm_cb = None
 
