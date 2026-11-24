@@ -1,6 +1,6 @@
 """Palette mesurée sur la capture de ChatGPT (thème sombre)."""
-BG_WINDOW = "#1e2022"
-BG_PANEL = "#181818"
+BG_WINDOW = "#000000"
+BG_PANEL = "#0a0a0a"
 BG_ELEV = "#363636"      # barre de saisie
 BG_CHIP = "#2d2d2d"
 BG_HOVER = "#2b2c2e"

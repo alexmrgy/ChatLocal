@@ -6,10 +6,10 @@
     outline: none;
 }
 
-QWidget#Root { background: #1e2022; }
+QWidget#Root { background: #000000; }
 QWidget#TitleBar, QWidget#Sidebar, QWidget#HistoryPanel, QWidget#HistoryInner { background: transparent; }
 
-QFrame#MainPanel { background: #181818; border-radius: 12px; }
+QFrame#MainPanel { background: #0a0a0a; border-radius: 12px; }
 QWidget#TopBar, QStackedWidget, QWidget#ChatInner { background: transparent; }
 QScrollArea#ChatView { background: transparent; border: none; }
 QScrollArea#ChatView > QWidget > QWidget { background: transparent; }

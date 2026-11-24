@@ -28,7 +28,10 @@ def load_fonts(app: QApplication) -> None:
     families = set(QFontDatabase.families())
     first = next((f for f in ("Nunito", "OpenAI Sans", "Söhne", "Inter", "Segoe UI Variable Text", "Segoe UI")
                   if f in families), "Segoe UI")
-    app.setFont(QFont(first, 10))
+    font = QFont(first, 10)
+    font.setHintingPreference(QFont.PreferNoHinting)   # pas de hinting : texte lisse, sans effet pixelisé
+    font.setStyleStrategy(QFont.PreferAntialias | QFont.PreferQuality)
+    app.setFont(font)
 
 
 def main() -> int:
