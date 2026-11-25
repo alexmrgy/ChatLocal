@@ -4,14 +4,39 @@ from __future__ import annotations
 from bisect import bisect_right
 
 from PySide6.QtCore import QRect, QSize, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QPainter, QSyntaxHighlighter, QTextCharFormat, QTextCursor
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QSyntaxHighlighter, QTextBlockFormat, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QPlainTextEdit, QTextEdit, QWidget
 from pygments.lexers import TextLexer, get_lexer_by_name
-from pygments.styles import get_style_by_name
+from pygments.token import Token
 
 from . import theme
 
-FONT_FAMILIES = "Cascadia Mono, Consolas, monospace"
+FONT_FAMILIES = "Cascadia Code, Cascadia Mono, Consolas, monospace"
+
+BG = "#0a0f1c"            # fond marine profond façon VS Code
+LINE_BG = QColor(255, 255, 255, 14)
+GUIDE = QColor(255, 255, 255, 24)
+
+# palette de coloration : (type de jeton, couleur, gras, italique) ; le premier qui correspond gagne
+PALETTE = [
+    (Token.Comment, "#5c6b8a", False, True),
+    (Token.Literal.String.Escape, "#f2c078", False, False),
+    (Token.Literal.String, "#e7a56a", False, False),
+    (Token.Literal.Number, "#f2d27a", False, False),
+    (Token.Keyword.Constant, "#5ea6ff", False, False),
+    (Token.Keyword.Namespace, "#a5b4fc", False, False),
+    (Token.Operator.Word, "#5ea6ff", False, False),
+    (Token.Keyword, "#a5b4fc", False, False),
+    (Token.Name.Decorator, "#f2c078", False, False),
+    (Token.Name.Class, "#7fdcc0", False, False),
+    (Token.Name.Namespace, "#7fdcc0", False, False),
+    (Token.Name.Exception, "#7fdcc0", False, False),
+    (Token.Name.Function, "#f1f5fb", False, False),
+    (Token.Name.Builtin, "#7fdcc0", False, False),
+    (Token.Name.Tag, "#a5b4fc", False, False),
+    (Token.Name.Attribute, "#7fdcc0", False, False),
+    (Token.Operator, "#c7d2e6", False, False),
+]
 
 
 class _Highlighter(QSyntaxHighlighter):
@@ -20,7 +45,6 @@ class _Highlighter(QSyntaxHighlighter):
     def __init__(self, doc):
         super().__init__(doc)
         self._lexer = TextLexer()
-        self._style = get_style_by_name("github-dark")
         self._fmt_cache: dict = {}
         self._spans: dict[int, list[tuple[int, int, QTextCharFormat]]] = {}
         self._lexed = None            # texte déjà analysé : la coloration elle-même ne doit pas relancer l'analyse
@@ -38,16 +62,16 @@ class _Highlighter(QSyntaxHighlighter):
     def _format(self, ttype) -> QTextCharFormat | None:
         if ttype in self._fmt_cache:
             return self._fmt_cache[ttype]
-        st = self._style.style_for_token(ttype)
         fmt = None
-        if st["color"] or st["bold"] or st["italic"]:
-            fmt = QTextCharFormat()
-            if st["color"]:
-                fmt.setForeground(QColor("#" + st["color"]))
-            if st["bold"]:
-                fmt.setFontWeight(QFont.Bold)
-            if st["italic"]:
-                fmt.setFontItalic(True)
+        for base, color, bold, italic in PALETTE:
+            if ttype in base:
+                fmt = QTextCharFormat()
+                fmt.setForeground(QColor(color))
+                if bold:
+                    fmt.setFontWeight(QFont.Bold)
+                if italic:
+                    fmt.setFontItalic(True)
+                break
         self._fmt_cache[ttype] = fmt
         return fmt
 
@@ -102,13 +126,15 @@ class CodeEditor(QPlainTextEdit):
         self.setObjectName("CodeEditor")
         self.setFrameShape(QPlainTextEdit.NoFrame)
         self.setLineWrapMode(QPlainTextEdit.NoWrap)
-        f = QFont()
-        f.setFamilies([s.strip() for s in FONT_FAMILIES.split(",")])
-        f.setPixelSize(13)
+        have = set(QFontDatabase.families())
+        fam = next((n.strip() for n in FONT_FAMILIES.split(",") if n.strip() in have), None)
+        f = QFont(fam) if fam else QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        f.setPixelSize(15)
         f.setStyleHint(QFont.Monospace)
+        f.setFixedPitch(True)
         self.setFont(f)
         self.setTabStopDistance(self.fontMetrics().horizontalAdvance(" ") * 4)
-        self.document().setDocumentMargin(10)
+        self.document().setDocumentMargin(12)
         self.setCursorWidth(2)
         self._lang = ""
         self.highlighter = _Highlighter(self.document())
@@ -122,7 +148,7 @@ class CodeEditor(QPlainTextEdit):
     # ----- ligne courante -----
     def _highlight_line(self) -> None:
         sel = QTextEdit.ExtraSelection()
-        sel.format.setBackground(QColor(255, 255, 255, 12))
+        sel.format.setBackground(LINE_BG)
         sel.format.setProperty(QTextCharFormat.FullWidthSelection, True)
         sel.cursor = self.textCursor()
         sel.cursor.clearSelection()
@@ -139,6 +165,15 @@ class CodeEditor(QPlainTextEdit):
                 c.insertText(code[len(cur):])
         else:
             self.setPlainText(code)
+            self._apply_line_height()
+
+    def _apply_line_height(self) -> None:
+        """Interligne aéré façon VS Code (appliqué à tout le document, hérité par les nouvelles lignes)."""
+        fmt = QTextBlockFormat()
+        fmt.setLineHeight(165, QTextBlockFormat.ProportionalHeight.value)
+        c = QTextCursor(self.document())
+        c.select(QTextCursor.Document)
+        c.mergeBlockFormat(fmt)
 
     # ----- langage -----
     def set_language(self, lang: str) -> None:
@@ -148,7 +183,7 @@ class CodeEditor(QPlainTextEdit):
     # ----- numéros de ligne -----
     def gutter_width(self) -> int:
         digits = max(2, len(str(max(1, self.blockCount()))))
-        return 22 + self.fontMetrics().horizontalAdvance("9") * digits
+        return 30 + self.fontMetrics().horizontalAdvance("9") * digits
 
     def _update_margin(self, *_) -> None:
         self.setViewportMargins(self.gutter_width(), 0, 0, 0)
@@ -168,19 +203,60 @@ class CodeEditor(QPlainTextEdit):
 
     def paint_gutter(self, e) -> None:
         p = QPainter(self.gutter)
-        p.fillRect(e.rect(), QColor("#0f1013"))
-        p.fillRect(self.gutter.width() - 1, e.rect().top(), 1, e.rect().height(), QColor(255, 255, 255, 14))
+        p.fillRect(e.rect(), QColor(BG))
         block = self.firstVisibleBlock()
         top = round(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
         cur = self.textCursor().blockNumber()
         while block.isValid() and top <= e.rect().bottom():
             h = round(self.blockBoundingRect(block).height())
             if block.isVisible() and top + h >= e.rect().top():
-                p.setPen(QColor("#c9d1d9" if block.blockNumber() == cur else "#4d5360"))
-                p.drawText(0, top, self.gutter.width() - 12, self.fontMetrics().height(), Qt.AlignRight,
+                is_cur = block.blockNumber() == cur and not self.isReadOnly()
+                if is_cur:
+                    p.fillRect(0, top, self.gutter.width(), h, LINE_BG)
+                f = QFont(self.font())
+                f.setBold(is_cur)
+                p.setFont(f)
+                p.setPen(QColor("#e6edf7" if is_cur else "#47557a"))
+                p.drawText(0, top, self.gutter.width() - 16, h, Qt.AlignRight | Qt.AlignVCenter,
                            str(block.blockNumber() + 1))
             block = block.next()
             top += h
+
+    # ----- repères d'indentation -----
+    @staticmethod
+    def _indent_levels(text: str) -> int:
+        return (len(text) - len(text.lstrip(" "))) // len(CodeEditor.INDENT)
+
+    def paintEvent(self, e) -> None:
+        super().paintEvent(e)
+        p = QPainter(self.viewport())
+        p.setPen(GUIDE)
+        cw = self.fontMetrics().horizontalAdvance(" ")
+        margin = self.document().documentMargin()
+        block = self.firstVisibleBlock()
+        carry = 0
+        while block.isValid():
+            geo = self.blockBoundingGeometry(block).translated(self.contentOffset())
+            if geo.top() > e.rect().bottom():
+                break
+            text = block.text()
+            if text.strip():
+                levels = self._indent_levels(text)
+                carry = levels
+            else:
+                nxt, look = block.next(), 0
+                nxt_levels = 0
+                while nxt.isValid() and look < 40:
+                    if nxt.text().strip():
+                        nxt_levels = self._indent_levels(nxt.text())
+                        break
+                    nxt, look = nxt.next(), look + 1
+                levels = min(carry, nxt_levels)
+            if geo.bottom() >= e.rect().top():
+                for k in range(levels):
+                    x = round(self.contentOffset().x() + margin + k * len(self.INDENT) * cw)
+                    p.drawLine(x, round(geo.top()), x, round(geo.bottom()))
+            block = block.next()
 
     # ----- édition de plusieurs lignes -----
     def _selected_blocks(self):
