@@ -26,6 +26,8 @@ class _Side(QFrame):
         v.setSpacing(4)
         self.title = QLabel(objectName="CompareTitle")
         v.addWidget(self.title)
+        self.label = ""
+        self.total = 0.0
         self.scroll = QScrollArea(objectName="CompareScroll", widgetResizable=True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.body = QWidget(objectName="CompareBody")
@@ -35,7 +37,7 @@ class _Side(QFrame):
         self.body_lay.addStretch(1)
         self.scroll.setWidget(self.body)
         v.addWidget(self.scroll, 1)
-        self.hint = QLabel("La réponse apparaîtra ici.", objectName="CompareStats")
+        self.hint = QLabel("Pose une question : la réponse de ce modèle apparaîtra ici.", objectName="CompareStats")
         self.hint.setAlignment(Qt.AlignCenter)
         self.body_lay.insertWidget(0, self.hint)
         self.history: list[dict] = []              # messages envoyés à CE modèle (questions + ses réponses)
@@ -51,7 +53,9 @@ class _Side(QFrame):
 
     def clear(self, label: str) -> None:
         """Nouvelle conversation : plus aucun message, aucun indicateur de réflexion."""
+        self.label = label
         self.title.setText(label)
+        self.total = 0.0
         for w in self.turns:
             self.body_lay.removeWidget(w)
             w.hide()
@@ -62,7 +66,12 @@ class _Side(QFrame):
         self.buffer, self.dirty, self.question = "", False, ""
         self.hint.show()
 
+    def mark_fastest(self, on: bool) -> None:
+        self.title.setText(self.label + ("   ⚡ le plus rapide" if on else ""))
+
     def begin_turn(self, question: str) -> None:
+        self.mark_fastest(False)
+        self.total = 0.0
         self.question = question
         self._build_turn(question, "En attente…")
         self.buffer, self.dirty = "", False
@@ -128,9 +137,12 @@ class _Side(QFrame):
         if self.first:
             parts.append(f"1er mot après {self.first:.1f} s")
         parts.append(f"{len(self.buffer)} caractères")
+        if total > 0.5 and self.buffer:
+            parts.append(f"{len(self.buffer) / total:.0f} car./s")
         return ("⏳ " if running else "✓ ") + " · ".join(parts)
 
     def finish(self, cancelled: bool) -> None:
+        self.total = (time.monotonic() - self.t0) if (self.t0 and self.buffer.strip() and not cancelled) else 0.0
         if self.msg:
             self.msg.set_text(self.buffer)
             self.msg.finish()
@@ -173,9 +185,10 @@ class ComparePage(QWidget):
             c.setMinimumHeight(36)
             c.setCursor(Qt.PointingHandCursor)
         pick.addWidget(self.combo_a, 1)
-        vs = QLabel("VS", objectName="CompareVs")
-        vs.setAlignment(Qt.AlignCenter)
-        pick.addWidget(vs)
+        self.swap_btn = IconButton("swap", size=(36, 36), icon_size=18, radius=12, bg="#2d2d2d",
+                                   bg_hover="#363636", tooltip="Inverser les deux modèles")
+        self.swap_btn.clicked.connect(self.swap)
+        pick.addWidget(self.swap_btn)
         pick.addWidget(self.combo_b, 1)
         self.new_btn = QPushButton("Nouvelle comparaison", objectName="Action")
         self.new_btn.setCursor(Qt.PointingHandCursor)
@@ -213,6 +226,19 @@ class ComparePage(QWidget):
         self.timer = QTimer(self, interval=60, timeout=self._tick)
         self.combo_a.currentIndexChanged.connect(lambda _: self.reset_all())
         self.combo_b.currentIndexChanged.connect(lambda _: self.reset_all())
+        self.reset_all()
+
+    def swap(self) -> None:
+        """Inverse les deux modèles (la comparaison repart de zéro)."""
+        if self.busy():
+            return
+        a, b = self.combo_a.currentIndex(), self.combo_b.currentIndex()
+        for c in (self.combo_a, self.combo_b):
+            c.blockSignals(True)
+        self.combo_a.setCurrentIndex(b)
+        self.combo_b.setCurrentIndex(a)
+        for c in (self.combo_a, self.combo_b):
+            c.blockSignals(False)
         self.reset_all()
 
     def reset_all(self) -> None:
@@ -323,6 +349,8 @@ class ComparePage(QWidget):
         if not self._running:
             self._set_busy(False)
             a, b = self.side_a, self.side_b
+            if a.total and b.total and abs(a.total - b.total) > 0.3:      # les deux ont répondu : on désigne le plus rapide
+                (a if a.total < b.total else b).mark_fastest(True)
             if a.buffer.strip() or b.buffer.strip():
                 self.saved_turns.append({"q": a.question, "a": a.buffer, "b": b.buffer,
                                          "sa": a.stats.text(), "sb": b.stats.text()})
@@ -331,6 +359,7 @@ class ComparePage(QWidget):
     def _set_busy(self, on: bool) -> None:
         self.combo_a.setEnabled(not on)
         self.combo_b.setEnabled(not on)
+        self.swap_btn.setEnabled(not on)
         self.new_btn.setEnabled(not on)
         if on:
             self.send.set_icon("stop")

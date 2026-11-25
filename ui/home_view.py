@@ -109,6 +109,7 @@ class TopBar(QWidget):
 
 class HomePage(QWidget):
     shortcutClicked = Signal(str)
+    compareClicked = Signal()
 
     def set_ephemeral(self, on: bool) -> None:
         self._ephemeral = on
@@ -160,5 +161,13 @@ class HomePage(QWidget):
             b.setFocusPolicy(Qt.NoFocus)
             b.clicked.connect(lambda _=False, p=prompt: self.shortcutClicked.emit(p))
             sc.addWidget(b, 0, Qt.AlignLeft)
+        cmp_btn = QPushButton("Comparer deux modèles", objectName="Shortcut")
+        cmp_btn.setIcon(QIcon(icon_pixmap("library", theme.TEXT_MUTE, 18, self.devicePixelRatioF())))
+        cmp_btn.setIconSize(QSize(18, 18))
+        cmp_btn.setFixedHeight(40)
+        cmp_btn.setCursor(Qt.PointingHandCursor)
+        cmp_btn.setFocusPolicy(Qt.NoFocus)
+        cmp_btn.clicked.connect(self.compareClicked)
+        sc.addWidget(cmp_btn, 0, Qt.AlignLeft)
         v.addWidget(sc_outer)
         v.addStretch(12)

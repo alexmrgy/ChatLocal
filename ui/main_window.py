@@ -253,6 +253,7 @@ class MainWindow(QWidget):
 
         self.home = HomePage()
         self.home.shortcutClicked.connect(self._shortcut)
+        self.home.compareClicked.connect(self.show_compare)
         self.stack.addWidget(self.home)
 
         chat_page = QWidget()
