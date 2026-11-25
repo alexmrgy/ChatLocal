@@ -314,7 +314,7 @@ class ComparePage(QWidget):
         if not text:
             return
         if not a or not b:
-            self.message.emit("Aucun modèle disponible. Lance Ollama ou ajoute une clé NVIDIA.")
+            self.message.emit("Aucun modèle disponible. Lance Ollama ou connecte Claude / NVIDIA.")
             return
         if a == b:
             self.message.emit("Choisis deux modèles différents.")

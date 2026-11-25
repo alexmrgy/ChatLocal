@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEd
                                QTextEdit, QVBoxLayout, QWidget)
 
 import attachments
+from claude_api.client import DISPLAY_NAMES as CLAUDE_NAMES
+from claude_api.client import PREFIX as CLAUDE_PREFIX
 from nvidia.client import PREFIX as NVIDIA_PREFIX
 
 from . import theme
@@ -127,6 +129,8 @@ class InputBar(QFrame):
     refreshRequested = Signal()
     nvidiaKeyAdd = Signal()
     nvidiaKeyRemove = Signal()
+    claudeKeyAdd = Signal()
+    claudeKeyRemove = Signal()
     modelRenameRequested = Signal(str)   # identifiant complet du modèle à renommer
     modelDeleteRequested = Signal(str)   # identifiant complet du modèle Ollama à supprimer
     filesRejected = Signal(str)          # message d'erreur : fichier illisible ou trop gros
@@ -135,6 +139,8 @@ class InputBar(QFrame):
         super().__init__(parent)
         self.setObjectName("InputBar")
         self._nvidia: list[str] = []
+        self._claude: list[str] = []
+        self._has_claude = False
         self._aliases: dict[str, str] = {}
         self._has_key = False
         self._models: list[str] = []
@@ -193,9 +199,10 @@ class InputBar(QFrame):
 
     # ----- état -----
     def set_models(self, models: list[str], running: bool, nvidia: list[str] | None = None,
-                   has_key: bool = False) -> None:
+                   has_key: bool = False, claude: list[str] | None = None, has_claude: bool = False) -> None:
         self._models, self._running = models, running
         self._nvidia, self._has_key = list(nvidia or []), has_key
+        self._claude, self._has_claude = list(claude or []), has_claude
         self._refresh_model_text()
 
     def set_aliases(self, aliases: dict) -> None:
@@ -204,6 +211,9 @@ class InputBar(QFrame):
 
     @staticmethod
     def default_name(full: str) -> str:
+        if full.startswith(CLAUDE_PREFIX):
+            real = full[len(CLAUDE_PREFIX):]
+            return CLAUDE_NAMES.get(real, real)          # « Claude Sonnet 4.5 » plutôt que l'identifiant daté
         return full[len(NVIDIA_PREFIX):] if full.startswith(NVIDIA_PREFIX) else full
 
     def display_name(self, full: str) -> str:
@@ -308,9 +318,11 @@ class InputBar(QFrame):
     def _refresh_model_text(self) -> None:
         if self._model.startswith(NVIDIA_PREFIX):
             label, tip = self.display_name(self._model), "Modèle NVIDIA (API en ligne) : " + self.default_name(self._model)
-        elif not self._running and not self._nvidia:
+        elif self._model.startswith(CLAUDE_PREFIX):
+            label, tip = self.display_name(self._model), "Modèle Claude (API Anthropic) : " + self._model[len(CLAUDE_PREFIX):]
+        elif not self._running and not self._nvidia and not self._claude:
             label, tip = "Ollama hors ligne", "Ollama ne répond pas sur localhost:11434"
-        elif not self._models and not self._nvidia:
+        elif not self._models and not self._nvidia and not self._claude:
             label, tip = "Aucun modèle", "Aucun modèle installé (ollama pull ...)"
         else:
             label = self.display_name(self._model) if self._model else "Choisir"
@@ -362,14 +374,18 @@ class InputBar(QFrame):
 
     def _open_menu(self) -> None:
         note = ""
-        if not self._running and not self._has_key:
+        if not self._running and not self._has_key and not self._has_claude:
             note = "Ollama n'est pas lancé"
-        elif self._running and not self._models and not self._has_key:
+        elif self._running and not self._models and not self._has_key and not self._has_claude:
             note = "Aucun modèle installé"
         shown = self._models if self._running else []
         names = {m: self.display_name(m) for m in shown}
         names.update({NVIDIA_PREFIX + m: self.display_name(NVIDIA_PREFIX + m) for m in self._nvidia})
-        popup = ModelPopup(shown, self._nvidia, self._model, note, self._has_key, self, names)
+        names.update({CLAUDE_PREFIX + m: self.display_name(CLAUDE_PREFIX + m) for m in self._claude})
+        popup = ModelPopup(shown, self._nvidia, self._model, note, self._has_key, self, names,
+                           claude=self._claude, has_claude=self._has_claude)
+        popup.addClaudeKey.connect(self.claudeKeyAdd)
+        popup.removeClaudeKey.connect(self.claudeKeyRemove)
         popup.renameRequested.connect(self.modelRenameRequested)
         popup.deleteRequested.connect(self.modelDeleteRequested)
         popup.chosen.connect(self.modelChosen)
@@ -485,12 +501,14 @@ class ModelPopup(QWidget):
     chosen = Signal(str)
     addKey = Signal()
     removeKey = Signal()
+    addClaudeKey = Signal()
+    removeClaudeKey = Signal()
     renameRequested = Signal(str)
     deleteRequested = Signal(str)
 
     MAX_LIST_H = 360
 
-    def __init__(self, ollama, nvidia, current, note, has_key, parent=None, names=None):
+    def __init__(self, ollama, nvidia, current, note, has_key, parent=None, names=None, claude=(), has_claude=False):
         super().__init__(parent, Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
         self._names = names or {}
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -506,7 +524,7 @@ class ModelPopup(QWidget):
         self._rows = []        # (ligne, texte filtrable)
         self._sections = []    # (titre, lignes)
         self.search = None
-        if len(ollama) + len(nvidia) > 8:
+        if len(ollama) + len(nvidia) + len(claude) > 8:
             self.search = QLineEdit(objectName="ModelSearch")
             self.search.setPlaceholderText("Rechercher un modèle")
             self.search.textChanged.connect(self._filter)
@@ -519,8 +537,9 @@ class ModelPopup(QWidget):
         cl.setSpacing(0)
         if note:
             cl.addWidget(_ModelRow(note, enabled=False))
-        both = bool(ollama) and has_key
-        self._add_section(cl, "Ollama" if both else "", ollama, current, "")
+        multi = sum(1 for x in (bool(ollama), has_key, has_claude) if x) > 1
+        self._add_section(cl, "Claude" if has_claude else "", claude, current, CLAUDE_PREFIX)
+        self._add_section(cl, "Ollama" if multi else "", ollama, current, "")
         if has_key:
             if nvidia:
                 self._add_section(cl, "NVIDIA", nvidia, current, NVIDIA_PREFIX)
@@ -541,6 +560,16 @@ class ModelPopup(QWidget):
         v.addSpacing(3)
         v.addWidget(line)
         v.addSpacing(3)
+        if has_claude:
+            for text, icon, sig in (("Modifier la clé API Claude", "key", self.addClaudeKey),
+                                    ("Déconnecter Claude", "trash", self.removeClaudeKey)):
+                r = _ModelRow(text, kind="action", icon=icon)
+                r.clicked.connect(lambda s=sig: (s.emit(), self.close()))
+                v.addWidget(r)
+        else:
+            r = _ModelRow("Connecter Claude (clé API)", kind="action", icon="key")
+            r.clicked.connect(lambda: (self.addClaudeKey.emit(), self.close()))
+            v.addWidget(r)
         if has_key:
             for text, icon, sig in (("Modifier la clé API NVIDIA", "key", self.addKey),
                                     ("Supprimer la clé API NVIDIA", "trash", self.removeKey)):

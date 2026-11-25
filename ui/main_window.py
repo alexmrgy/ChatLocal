@@ -16,9 +16,10 @@ from PySide6.QtWidgets import (QGraphicsOpacityEffect, QApplication, QFileDialog
 import attachments
 from database.db import Database
 from database.db import _load_files as load_files
+from claude_api import client as claude_client
 from nvidia import client as nvidia_client
 from ollama import client
-from ollama.workers import CallWorker, ChatWorker, ModelsPoller, NvidiaModelsWorker
+from ollama.workers import CallWorker, ChatWorker, ClaudeModelsWorker, ModelsPoller, NvidiaModelsWorker
 
 from .home_view import HomePage, TopBar, centered_slot
 from .code_panel import CodePanel
@@ -134,6 +135,9 @@ class MainWindow(QWidget):
         self.nvidia_key = ""
         self.nvidia_models: list[str] = []
         self._nv_workers: list[NvidiaModelsWorker] = []
+        self.claude_key = ""
+        self.claude_models: list[str] = []
+        self._cl_workers: list[ClaudeModelsWorker] = []
         self.nav: list[int | None] = [None]
         self.nav_i = 0
 
@@ -149,6 +153,10 @@ class MainWindow(QWidget):
         if saved:
             self.nvidia_key = saved
             self._fetch_nvidia(saved, announce=False)
+        saved = self.db.get_secret("claude_key")
+        if saved:
+            self.claude_key = saved
+            self._fetch_claude(saved, announce=False)
         self._reload_history()
         self._restore_state()
         self.input.focus_input()
@@ -299,6 +307,8 @@ class MainWindow(QWidget):
         except ValueError:
             pass
         self.input.nvidiaKeyRemove.connect(self.remove_nvidia_key)
+        self.input.claudeKeyAdd.connect(self.add_claude_key)
+        self.input.claudeKeyRemove.connect(self.remove_claude_key)
         self.home.input_slot.addWidget(self.input)
         self.dashed = DashedBorder(self.panel)
         self.toast = Toast(self.panel)
@@ -505,10 +515,16 @@ class MainWindow(QWidget):
         self.poller.refresh()
         if self.nvidia_key:
             self._fetch_nvidia(self.nvidia_key, announce=False)
+        if self.claude_key:
+            self._fetch_claude(self.claude_key, announce=False)
         self.toast.show_message("Actualisation des modèles…", 1500)
 
     def _compare_stream(self, model: str, msgs: list):
         """Flux de réponse pour la page de comparaison (Ollama ou NVIDIA)."""
+        if model.startswith(claude_client.PREFIX):
+            if not self.claude_key:
+                raise ValueError("Connecte Claude (clé API) pour comparer un modèle Claude.")
+            return claude_client.ChatStream(self.claude_key, model[len(claude_client.PREFIX):], msgs)
         if model.startswith(nvidia_client.PREFIX):
             if not self.nvidia_key:
                 raise ValueError("Ajoute ta clé API NVIDIA pour comparer un modèle NVIDIA.")
@@ -570,7 +586,8 @@ class MainWindow(QWidget):
             self.toast.show_message("Il faut au moins deux modèles (Ollama ou NVIDIA) pour comparer.", 4000)
 
     def _all_models(self) -> list[str]:
-        return self.models + [nvidia_client.PREFIX + m for m in self.nvidia_models]
+        return (self.models + [nvidia_client.PREFIX + m for m in self.nvidia_models]
+                + [claude_client.PREFIX + m for m in self.claude_models])
 
     def _sync_models(self) -> None:
         """Met à jour le sélecteur et corrige le modèle courant s'il n'existe plus."""
@@ -580,7 +597,8 @@ class MainWindow(QWidget):
             last = self.db.get_setting("last_model")
             cur = last if last in valid else (self.models[0] if self.models else (valid[0] if valid else ""))
             self.input.set_model(cur)
-        self.input.set_models(self.models, self.running, self.nvidia_models, bool(self.nvidia_key))
+        self.input.set_models(self.models, self.running, self.nvidia_models, bool(self.nvidia_key),
+                              self.claude_models, bool(self.claude_key))
 
     def _on_running(self, running: bool) -> None:
         self.running = running
@@ -641,6 +659,49 @@ class MainWindow(QWidget):
         # une clé refusée à l'ajout n'est jamais enregistrée ; au démarrage on garde la clé (panne réseau possible)
         self.toast.show_message(msg, 6000)
         self._sync_models()
+
+    # ---- Claude (clé API Anthropic) ----
+    def add_claude_key(self) -> None:
+        self.prompt.ask(
+            "Connecter Claude",
+            "Colle ta clé API (sk-ant-…) créée sur console.anthropic.com. Elle est chiffrée et reste sur ce PC.",
+            "sk-ant-…", "", "Connecter", lambda key: self._fetch_claude(key, announce=True),
+            icon="key", secret=True)
+
+    def _fetch_claude(self, key: str, announce: bool) -> None:
+        key = key.strip()
+        if announce:
+            self.toast.show_message("Vérification de la clé Claude…", 8000)
+        w = ClaudeModelsWorker(key, self)
+        w.ok.connect(lambda k, ms, a=announce: self._on_claude_ok(k, ms, a))
+        w.failed.connect(lambda msg: (self.toast.show_message(msg, 6000), self._sync_models()))
+        self._cl_workers.append(w)
+        w.finished.connect(lambda w=w: self._cl_workers.remove(w) if w in self._cl_workers else None)
+        w.finished.connect(w.deleteLater)
+        w.start()
+
+    def _on_claude_ok(self, key: str, models: list, announce: bool) -> None:
+        if announce:        # clé validée par Anthropic : on la mémorise (chiffrée)
+            self.db.set_secret("claude_key", key)
+            self.toast.show_message(f"Claude connecté · {len(models)} modèles disponibles", 4000)
+        self.claude_key = key
+        self.claude_models = models
+        if announce and models and not self.input.model().startswith(claude_client.PREFIX):
+            self._choose_model(claude_client.PREFIX + models[0])      # on bascule directement sur Claude
+        self._sync_models()
+
+    def remove_claude_key(self) -> None:
+        def do() -> None:
+            self.db.delete_secret("claude_key")
+            self.claude_key, self.claude_models = "", []
+            if self.input.model().startswith(claude_client.PREFIX):
+                self.input.set_model("")
+            self._sync_models()
+            self.toast.show_message("Claude déconnecté", 2500)
+
+        self._confirm("claude_key", "Déconnecter Claude ?",
+                      "Les modèles Claude ne seront plus disponibles tant que tu n'ajoutes pas une nouvelle clé.",
+                      "Déconnecter", do, "key")
 
     def _confirm(self, kind: str, title: str, message: str, button: str, action, icon: str = "trash") -> None:
         """Confirmation en verre dépoli ; « Ne plus me demander » mémorise le choix pour ce type d'action."""
@@ -704,7 +765,7 @@ class MainWindow(QWidget):
                       "Supprimer", do)
 
     def _choose_model(self, name: str) -> None:
-        if name and not name.startswith(nvidia_client.PREFIX):
+        if name and not name.startswith((nvidia_client.PREFIX, claude_client.PREFIX)):
             self._run_call(lambda: client.warm_up(name))      # charge le modèle en mémoire dès maintenant
         self.input.set_model(name)
         self.db.set_setting("last_model", name)
@@ -1062,12 +1123,17 @@ class MainWindow(QWidget):
         if self.worker:
             return
         model = self.input.model()
+        is_claude = model.startswith(claude_client.PREFIX)
         is_nvidia = model.startswith(nvidia_client.PREFIX)
+        if is_claude and not self.claude_key:
+            self.input.set_text(text)
+            self.toast.show_message("Connecte Claude (clé API) depuis le choix du modèle.")
+            return
         if is_nvidia and not self.nvidia_key:
             self.input.set_text(text)
             self.toast.show_message("Ajoute ta clé API NVIDIA depuis le choix du modèle.")
             return
-        if not is_nvidia and not self.running:
+        if not is_nvidia and not is_claude and not self.running:
             self.input.set_text(text)
             self.toast.show_message(f"Ollama est injoignable sur {client.BASE_URL}. Lance Ollama puis réessaie.")
             return
@@ -1121,8 +1187,12 @@ class MainWindow(QWidget):
         if is_nvidia and any("images" in m for m in msgs):
             msgs = [{k: v for k, v in m.items() if k != "images"} for m in msgs]
             self.toast.show_message("Les images ne sont pas envoyées aux modèles NVIDIA.", 3500)
-        stream = (nvidia_client.ChatStream(self.nvidia_key, model[len(nvidia_client.PREFIX):], msgs) if is_nvidia
-                  else client.ChatStream(model, msgs))
+        if is_claude:
+            stream = claude_client.ChatStream(self.claude_key, model[len(claude_client.PREFIX):], msgs)
+        elif is_nvidia:
+            stream = nvidia_client.ChatStream(self.nvidia_key, model[len(nvidia_client.PREFIX):], msgs)
+        else:
+            stream = client.ChatStream(model, msgs)
         w = ChatWorker(stream, self)
         w.content.connect(self._on_chunk)
         w.failed.connect(self._on_failed)

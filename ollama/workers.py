@@ -5,6 +5,8 @@ import threading
 
 from PySide6.QtCore import QThread, Signal
 
+from claude_api import client as claude_client
+from claude_api.client import ClaudeError
 from nvidia import client as nvidia_client
 from nvidia.client import NvidiaError
 
@@ -33,7 +35,7 @@ class ChatWorker(QThread):
                     self.content.emit(text)
                 else:
                     self.thinking.emit()
-        except (client.OllamaError, NvidiaError) as e:
+        except (client.OllamaError, NvidiaError, ClaudeError) as e:
             self.failed.emit(str(e))
         except Exception as e:  # filet de sécurité : ne jamais tuer le thread en silence
             self.failed.emit(f"Erreur inattendue : {e}")
@@ -74,6 +76,24 @@ class NvidiaModelsWorker(QThread):
         try:
             self.ok.emit(self._key, nvidia_client.list_models(self._key))
         except NvidiaError as e:
+            self.failed.emit(str(e))
+        except Exception as e:
+            self.failed.emit(f"Erreur inattendue : {type(e).__name__}")
+
+
+class ClaudeModelsWorker(QThread):
+    """Vérifie une clé API Claude en récupérant la liste des modèles (une seule requête)."""
+    ok = Signal(str, list)      # (clé, modèles)
+    failed = Signal(str)
+
+    def __init__(self, key: str, parent=None):
+        super().__init__(parent)
+        self._key = key
+
+    def run(self) -> None:
+        try:
+            self.ok.emit(self._key, claude_client.list_models(self._key))
+        except ClaudeError as e:
             self.failed.emit(str(e))
         except Exception as e:
             self.failed.emit(f"Erreur inattendue : {type(e).__name__}")
