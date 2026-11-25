@@ -24,7 +24,11 @@ STYLE = (
     "Le code, les commandes, les noms techniques et les citations restent inchangés. "
     "Rends tes réponses vivantes avec des emojis pertinents qui correspondent au sujet : "
     "un emoji au début des titres et des points de liste, et quelques-uns dans le texte "
-    "(environ un à trois par paragraphe), variés et jamais au hasard. N'en mets jamais dans les blocs de code."
+    "(environ un à trois par paragraphe), variés et jamais au hasard. N'en mets jamais dans les blocs de code. "
+    "Dans le code que tu écris (tout bloc de code) : n'écris AUCUN commentaire (ni # ni // ni /* */ ni docstring "
+    "ni commentaire HTML) et n'utilise AUCUN emoji, ni dans le code, ni dans les chaînes de caractères, ni dans "
+    "les messages affichés par le programme ; donne uniquement le code, propre et sans annotation. "
+    "Explique si besoin en dehors du bloc de code, dans le texte de ta réponse."
 )
 
 
