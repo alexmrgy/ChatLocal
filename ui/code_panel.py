@@ -3,24 +3,16 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer, Signal
 from PySide6.QtGui import QKeySequence, QShortcut, QTextCursor
-from PySide6.QtWidgets import QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QSplitter,
+                               QVBoxLayout, QWidget)
 
 from . import theme
 from .code_editor import CodeEditor
 from .icons import icon_pixmap
 from .terminal import Terminal, run_kind
+from . import vscode
+from .vscode import EXT, extension_for  # noqa: F401  (réexporté)
 from .widgets import IconButton, Spinner
-
-EXT = {"python": "py", "py": "py", "javascript": "js", "js": "js", "typescript": "ts", "ts": "ts", "html": "html",
-       "css": "css", "json": "json", "bash": "sh", "sh": "sh", "shell": "sh", "powershell": "ps1", "ps1": "ps1",
-       "c": "c", "cpp": "cpp", "c++": "cpp", "csharp": "cs", "cs": "cs", "java": "java", "go": "go", "rust": "rs",
-       "rs": "rs", "sql": "sql", "markdown": "md", "md": "md", "yaml": "yml", "yml": "yml", "xml": "xml",
-       "php": "php", "ruby": "rb", "kotlin": "kt", "swift": "swift", "lua": "lua", "pine": "pine"}
-
-
-def extension_for(lang: str) -> str:
-    return EXT.get((lang or "").lower().strip(), "txt")
-
 
 class CodePanel(QWidget):
     """Colonne de droite qui s'ouvre en glissant ; largeur réglable à la souris (poignée à gauche)."""
@@ -71,6 +63,13 @@ class CodePanel(QWidget):
         self.save_label = QLabel(objectName="PanelSaved")
         head.addWidget(self.save_label)
         head.addStretch(1)
+        self.vs_btn = QPushButton("Ouvrir l'éditeur de code", objectName="OpenEditorBtn")
+        self.vs_btn.setCursor(Qt.PointingHandCursor)
+        self.vs_btn.setFocusPolicy(Qt.NoFocus)
+        self.vs_btn.setFixedHeight(26)
+        self.vs_btn.clicked.connect(self._open_vscode)
+        self._vs_path = None
+        head.addWidget(self.vs_btn)
         self.spinner = Spinner(16, theme.TEXT_DIM)
         self.spinner.setToolTip("Le code s'écrit…")
         self.spinner.hide()
@@ -206,6 +205,8 @@ class CodePanel(QWidget):
         else:
             sb.setValue(value)
         self.save_label.setText("")
+        if self._vs_path is not None:
+            vscode.write(self._vs_path, self.code())      # fichier VS Code suivi en direct
 
     def _refresh_labels(self) -> None:
         code = self.code()
@@ -234,6 +235,8 @@ class CodePanel(QWidget):
             self._emit_save()
 
     def _emit_save(self) -> None:
+        if self._vs_path is not None:
+            vscode.write(self._vs_path, self.code())
         self.codeEdited.emit(self.code())
         self.save_label.setText("· enregistré ✓")
 
@@ -271,6 +274,13 @@ class CodePanel(QWidget):
         self.terminal.run_code(self.code(), self._lang)
 
     # ----- actions -----
+    def _open_vscode(self) -> None:
+        self._flush_save()
+        if self._vs_path is None:
+            self._vs_path = vscode.new_path(self._lang)
+        vscode.write(self._vs_path, self.code())
+        vscode.open_in_vscode(self._vs_path)
+
     def _copy(self) -> None:
         QApplication.clipboard().setText(self.code())
         self.copy_btn.flash("check", theme.SUCCESS)

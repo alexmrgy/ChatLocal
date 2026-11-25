@@ -254,6 +254,11 @@ QPlainTextEdit#CodeEditor QScrollBar::handle:vertical { background: #3c4048; bor
 QPlainTextEdit#CodeEditor QScrollBar::handle:vertical:hover { background: #596070; }
 QPlainTextEdit#CodeEditor QScrollBar::add-line, QPlainTextEdit#CodeEditor QScrollBar::sub-line { width: 0; height: 0; }
 QPlainTextEdit#CodeEditor QScrollBar::add-page, QPlainTextEdit#CodeEditor QScrollBar::sub-page { background: transparent; }
+QPushButton#OpenEditorBtn {
+    background: transparent; color: #c9d1d9; border: 1px solid rgba(255, 255, 255, 36); border-radius: 8px;
+    padding: 0 10px; font-size: 12px; font-weight: 600;
+}
+QPushButton#OpenEditorBtn:hover { background: #2a2d34; color: #ffffff; border-color: rgba(255, 255, 255, 60); }
 QLabel#PanelSaved { color: #6fbf8b; font-size: 12px; background: transparent; }
 QSplitter#CodeSplit::handle:vertical { background: #232425; }
 QWidget#TerminalBox { background: #0c0d0f; border-top: 1px solid #2a2b2c; }

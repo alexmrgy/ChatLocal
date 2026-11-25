@@ -15,6 +15,7 @@ from .icons import icon_pixmap
 from .markdown_render import CODE_CSS, DOC_CSS, code_to_html, md_to_html, replace_code_segment, split_segments
 from .action_menu import ActionMenu, MenuItem
 from .input_bar import PromptEdit
+from . import vscode
 from .widgets import AutoText, IconButton, Spinner
 
 COLUMN_MAX = 740
@@ -146,6 +147,15 @@ class CodeBlock(QFrame):
         self.open_btn.clicked.connect(self._open_panel)
         head.addWidget(self.lang_label)
         head.addStretch(1)
+        self.vs_btn = QPushButton("Ouvrir l'éditeur de code", objectName="OpenEditorBtn")
+        self.vs_btn.setCursor(Qt.PointingHandCursor)
+        self.vs_btn.setFocusPolicy(Qt.NoFocus)
+        self.vs_btn.setFixedHeight(26)
+        self.vs_btn.setToolTip("Ouvre le code dans VS Code (le fichier se met à jour pendant l'écriture)")
+        self.vs_btn.clicked.connect(self._open_vscode)
+        self._vs_path = None
+        head.addWidget(self.vs_btn)
+        head.addSpacing(6)
         self.spinner = Spinner(16, theme.TEXT_DIM)
         self.spinner.setToolTip("Génération du code…")
         self.spinner.hide()
@@ -184,6 +194,8 @@ class CodeBlock(QFrame):
         if (code, lang, closed) == (self._code, self._lang, self._closed):
             return
         self._code, self._lang, self._closed = code, lang, closed
+        if self._vs_path is not None:
+            vscode.write(self._vs_path, code)       # VS Code recharge le fichier : suivi en direct
         self.lang_label.setText((lang or "code").lower())
         busy = not closed
         self.copy_btn.setVisible(not busy)       # pendant la génération : logo de chargement à la place des boutons
@@ -224,6 +236,12 @@ class CodeBlock(QFrame):
     def _open_panel(self) -> None:
         if CODE_HOOKS["open"]:
             CODE_HOOKS["open"](self)
+
+    def _open_vscode(self) -> None:
+        if self._vs_path is None:
+            self._vs_path = vscode.new_path(self._lang or "")
+        vscode.write(self._vs_path, self._code)
+        vscode.open_in_vscode(self._vs_path)
 
     def _on_copy(self) -> None:
         _copy(self._code)
