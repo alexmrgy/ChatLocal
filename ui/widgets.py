@@ -4,8 +4,8 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation
-from PySide6.QtGui import QColor, QCursor, QPainter
-from PySide6.QtWidgets import QAbstractButton, QSizePolicy, QTextBrowser
+from PySide6.QtGui import QColor, QCursor, QPainter, QPen
+from PySide6.QtWidgets import QAbstractButton, QSizePolicy, QTextBrowser, QWidget
 
 from . import theme
 from .icons import icon_pixmap
@@ -18,6 +18,43 @@ def _mix(a: QColor, b: QColor, t: float) -> QColor:
         round(a.blue() + (b.blue() - a.blue()) * t),
         round(a.alpha() + (b.alpha() - a.alpha()) * t),
     )
+
+
+class Spinner(QWidget):
+    """Petit indicateur de chargement (arc qui tourne)."""
+
+    def __init__(self, size: int = 18, color: str = theme.TEXT_DIM, parent=None):
+        super().__init__(parent)
+        self._color = QColor(color)
+        self._angle = 0
+        self.setFixedSize(size, size)
+        self._timer = QTimer(self, interval=16, timeout=self._step)
+
+    def showEvent(self, e) -> None:
+        self._timer.start()
+        super().showEvent(e)
+
+    def hideEvent(self, e) -> None:
+        self._timer.stop()
+        super().hideEvent(e)
+
+    def _step(self) -> None:
+        self._angle = (self._angle - 7) % 360
+        self.update()
+
+    def paintEvent(self, e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        w = 2.0
+        r = QRectF(self.rect()).adjusted(w, w, -w, -w)
+        track = QColor(self._color)
+        track.setAlpha(45)
+        p.setPen(QPen(track, w))
+        p.drawEllipse(r)
+        pen = QPen(self._color, w)
+        pen.setCapStyle(Qt.RoundCap)
+        p.setPen(pen)
+        p.drawArc(r, self._angle * 16, 100 * 16)
 
 
 class IconButton(QAbstractButton):

@@ -136,6 +136,11 @@ QTextBrowser#CodeView { background: transparent; border: none; color: #e6e6e6; f
 QTextBrowser#CodeView QScrollBar:horizontal { background: #494949; height: 8px; margin: 0; border-radius: 4px; }
 QTextBrowser#CodeView QScrollBar::handle:horizontal { background: #7a7a7a; border-radius: 4px; min-width: 40px; }
 QTextBrowser#CodeView QScrollBar::handle:horizontal:hover { background: #959595; }
+QTextBrowser#CodeView QScrollBar:vertical { background: transparent; width: 8px; margin: 2px 0; border-radius: 4px; }
+QTextBrowser#CodeView QScrollBar::handle:vertical { background: #3c4048; border-radius: 4px; min-height: 40px; }
+QTextBrowser#CodeView QScrollBar::handle:vertical:hover { background: #596070; }
+QTextBrowser#CodeView QScrollBar::add-line:vertical, QTextBrowser#CodeView QScrollBar::sub-line:vertical { height: 0; }
+QTextBrowser#CodeView QScrollBar::add-page:vertical, QTextBrowser#CodeView QScrollBar::sub-page:vertical { background: transparent; }
 QTextBrowser#CodeView QScrollBar::add-line:horizontal, QTextBrowser#CodeView QScrollBar::sub-line:horizontal { width: 0; }
 QTextBrowser#CodeView QScrollBar::add-page:horizontal, QTextBrowser#CodeView QScrollBar::sub-page:horizontal { background: transparent; }
 

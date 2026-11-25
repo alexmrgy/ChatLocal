@@ -15,7 +15,7 @@ from .icons import icon_pixmap
 from .markdown_render import CODE_CSS, DOC_CSS, code_to_html, md_to_html, replace_code_segment, split_segments
 from .action_menu import ActionMenu, MenuItem
 from .input_bar import PromptEdit
-from .widgets import AutoText, IconButton
+from .widgets import AutoText, IconButton, Spinner
 
 COLUMN_MAX = 740
 # liaisons avec la fenêtre principale (panneau de code à droite)
@@ -72,16 +72,20 @@ def show_text_menu(tb: QTextBrowser, pos) -> None:
 
 
 class CodeView(QTextBrowser):
-    """Code sans retour à la ligne : barre de défilement horizontale fine, hauteur = contenu."""
+    """Code sans retour à la ligne. Hauteur fixe (MAX_H) avec défilement interne dès que le code est plus long ;
+    pendant la génération la zone garde sa taille prédéfinie et suit la fin du code."""
+
+    MAX_H = 340
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("CodeView")
         self.setFrameShape(QFrame.NoFrame)
         self.setLineWrapMode(QTextBrowser.NoWrap)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.generating = False
         self.document().setDocumentMargin(0)
         self.document().setDefaultStyleSheet(CODE_CSS)
         self.document().documentLayout().documentSizeChanged.connect(lambda _: self._fit())
@@ -93,8 +97,18 @@ class CodeView(QTextBrowser):
         bar = self.horizontalScrollBar()
         need_bar = math.ceil(doc.idealWidth()) > self.viewport().width()
         extra = (bar.sizeHint().height() + 6) if need_bar else 0
-        if h + extra != self.height():
-            self.setFixedHeight(max(h + extra, 1))
+        want = self.MAX_H if self.generating else min(h + extra, self.MAX_H)
+        if want != self.height():
+            self.setFixedHeight(max(want, 1))
+
+    def wheelEvent(self, e) -> None:
+        """Défile dans le code ; aux extrémités, la molette reprend la discussion (pas de piège)."""
+        bar = self.verticalScrollBar()
+        dy = e.angleDelta().y()
+        if bar.maximum() == 0 or (dy > 0 and bar.value() <= bar.minimum()) or (dy < 0 and bar.value() >= bar.maximum()):
+            e.ignore()
+            return
+        super().wheelEvent(e)
 
     def resizeEvent(self, e) -> None:
         super().resizeEvent(e)
@@ -132,6 +146,10 @@ class CodeBlock(QFrame):
         self.open_btn.clicked.connect(self._open_panel)
         head.addWidget(self.lang_label)
         head.addStretch(1)
+        self.spinner = Spinner(16, theme.TEXT_DIM)
+        self.spinner.setToolTip("Génération du code…")
+        self.spinner.hide()
+        head.addWidget(self.spinner)
         head.addWidget(self.open_btn)
         head.addWidget(self.copy_btn)
         head_w = QWidget()
@@ -167,12 +185,22 @@ class CodeBlock(QFrame):
             return
         self._code, self._lang, self._closed = code, lang, closed
         self.lang_label.setText((lang or "code").lower())
+        busy = not closed
+        self.copy_btn.setVisible(not busy)       # pendant la génération : logo de chargement à la place des boutons
+        self.open_btn.setVisible(not busy)
+        self.spinner.setVisible(busy)
+        bar = self.body.verticalScrollBar()
+        follow = not self.body.generating or bar.value() >= bar.maximum() - 6
+        old = bar.value()
+        self.body.generating = busy
         self.body.setHtml(code_to_html(code, lang, True))
         fmt = QTextBlockFormat()
         fmt.setLineHeight(125, QTextBlockFormat.ProportionalHeight.value)
         cur = QTextCursor(self.body.document())
         cur.select(QTextCursor.Document)
         cur.mergeBlockFormat(fmt)
+        self.body._fit()
+        bar.setValue(bar.maximum() if (busy and follow) else min(old, bar.maximum()))
         if CODE_HOOKS["link"] is self and CODE_HOOKS["update"]:      # affiché à droite : mise à jour en direct
             CODE_HOOKS["update"](code, lang, closed)
 
