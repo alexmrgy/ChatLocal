@@ -6,7 +6,7 @@ import textwrap
 import time
 
 from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QTextBlockFormat, QTextCursor
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QTextBlockFormat, QTextCursor
 from PySide6.QtWidgets import (QApplication, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy, QTextBrowser, QVBoxLayout, QWidget)
 
@@ -105,7 +105,9 @@ class CodeView(QTextBrowser):
 
 
 class CodeBlock(QFrame):
-    """Bloc de code façon ChatGPT : carte grise #393939, icône </> + langue, copie à droite."""
+    """Bloc de code : carte sombre à bords fins, bandeau d'en-tête (langue à gauche, actions à droite)."""
+
+    HEAD_H = 38
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -116,27 +118,26 @@ class CodeBlock(QFrame):
         self.owner = None           # AssistantMessage qui contient ce bloc
         lay = QVBoxLayout(self)
         m = self.SHADOW
-        lay.setContentsMargins(22 + m, 14 + m, 14 + m, 4 + m)
-        lay.setSpacing(6)
+        lay.setContentsMargins(14 + m, 4 + m, 8 + m, 12 + m)
+        lay.setSpacing(8)
         head = QHBoxLayout()
         head.setContentsMargins(0, 0, 0, 0)
-        head.setSpacing(10)
-        self.icon = QLabel(objectName="CodeIcon")
-        self.icon.setFixedSize(20, 20)
-        self.icon.setPixmap(icon_pixmap("code", theme.TEXT, 18, self.devicePixelRatioF()))
+        head.setSpacing(2)
         self.lang_label = QLabel(objectName="CodeLang")
-        self.copy_btn = IconButton("copy", size=(34, 34), icon_size=18, radius=10, fg=theme.TEXT,
-                                   fg_hover="#ffffff", bg_hover="#4a4a4a", tooltip="Copier le code")
+        self.copy_btn = IconButton("copy", size=(30, 30), icon_size=16, radius=8, fg=theme.TEXT_DIM,
+                                   fg_hover="#ffffff", bg_hover="#2c2c2e", tooltip="Copier le code")
         self.copy_btn.clicked.connect(self._on_copy)
-        self.open_btn = IconButton("panel_open", size=(34, 34), icon_size=18, radius=10, fg=theme.TEXT,
-                                   fg_hover="#ffffff", bg_hover="#4a4a4a", tooltip="Ouvrir sur la droite")
+        self.open_btn = IconButton("panel_open", size=(30, 30), icon_size=16, radius=8, fg=theme.TEXT_DIM,
+                                   fg_hover="#ffffff", bg_hover="#2c2c2e", tooltip="Ouvrir sur la droite")
         self.open_btn.clicked.connect(self._open_panel)
-        head.addWidget(self.icon)
         head.addWidget(self.lang_label)
         head.addStretch(1)
         head.addWidget(self.open_btn)
         head.addWidget(self.copy_btn)
-        lay.addLayout(head)
+        head_w = QWidget()
+        head_w.setFixedHeight(self.HEAD_H - 4)
+        head_w.setLayout(head)
+        lay.addWidget(head_w)
         self.body = CodeView()
         lay.addWidget(self.body)
 
@@ -145,24 +146,30 @@ class CodeBlock(QFrame):
     def paintEvent(self, e) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        p.setPen(Qt.NoPen)
         m = self.SHADOW
-        card = QRectF(self.rect()).adjusted(m, m, -m, -m)
-        for i, alpha in enumerate((8, 14, 22, 34)):      # halo doux, du plus large au plus serré
-            grow = 4 - i
-            p.setBrush(QColor(0, 0, 0, alpha))
-            p.drawRoundedRect(card.adjusted(-grow, -grow + 1, grow, grow + 1), 16 + grow, 16 + grow)
-        p.setBrush(QColor("#393939"))
-        p.drawRoundedRect(card, 16, 16)
+        card = QRectF(self.rect()).adjusted(m + 0.5, m + 0.5, -m - 0.5, -m - 0.5)
+        path = QPainterPath()
+        path.addRoundedRect(card, 12, 12)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor("#141415"))                    # corps du code
+        p.drawPath(path)
+        p.save()
+        p.setClipPath(path)                              # bandeau d'en-tête un peu plus clair
+        p.fillRect(QRectF(card.left(), card.top(), card.width(), self.HEAD_H), QColor("#1d1d1f"))
+        p.fillRect(QRectF(card.left(), card.top() + self.HEAD_H, card.width(), 1), QColor(255, 255, 255, 14))
+        p.restore()
+        p.setPen(QPen(QColor(255, 255, 255, 26), 1))     # liseré fin
+        p.setBrush(Qt.NoBrush)
+        p.drawPath(path)
 
     def update_code(self, code: str, lang: str, closed: bool) -> None:
         if (code, lang, closed) == (self._code, self._lang, self._closed):
             return
         self._code, self._lang, self._closed = code, lang, closed
-        self.lang_label.setText(lang or "code")
+        self.lang_label.setText((lang or "code").lower())
         self.body.setHtml(code_to_html(code, lang))
         fmt = QTextBlockFormat()
-        fmt.setLineHeight(165, QTextBlockFormat.ProportionalHeight.value)
+        fmt.setLineHeight(125, QTextBlockFormat.ProportionalHeight.value)
         cur = QTextCursor(self.body.document())
         cur.select(QTextCursor.Document)
         cur.mergeBlockFormat(fmt)

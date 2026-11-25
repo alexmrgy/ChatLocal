@@ -13,7 +13,7 @@ from pygments.lexers import TextLexer, get_lexer_by_name
 from . import theme
 
 _FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})\s*([\w+#.-]*)")
-_FORMATTER = HtmlFormatter(nowrap=True, noclasses=True, style="monokai")
+_FORMATTER = HtmlFormatter(nowrap=True, noclasses=True, style="one-dark")
 
 DOC_CSS = f"""
 body {{ color: {theme.TEXT}; }}
@@ -29,7 +29,7 @@ code {{ font-family: Consolas, 'Cascadia Mono', monospace; background-color: #2b
 blockquote {{ color: {theme.TEXT_DIM}; margin-left: 8px; }}
 """
 
-CODE_CSS = "pre { margin: 0; font-family: 'Cascadia Mono', Consolas, monospace; font-size: 14px; }"
+CODE_CSS = "pre { margin: 0; font-family: 'Cascadia Mono', Consolas, monospace; font-size: 13px; }"
 
 
 @dataclass

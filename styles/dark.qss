@@ -130,9 +130,9 @@ QLineEdit#ModelSearch:focus { border-color: #4867be; }
 /* messages */
 QFrame#UserBubble { background: #293e72; border-radius: 14px; }
 QFrame#CodeBlock { background: transparent; border: none; }
-QLabel#CodeLang { color: #ffffff; font-size: 15px; font-weight: 700; background: transparent; }
+QLabel#CodeLang { color: #9a9a9e; font-size: 12px; font-weight: 600; background: transparent; padding-left: 2px; }
 QLabel#CodeIcon { background: transparent; }
-QTextBrowser#CodeView { background: transparent; border: none; color: #f0f0f0; font-size: 14px; }
+QTextBrowser#CodeView { background: transparent; border: none; color: #e6e6e6; font-size: 13px; }
 QTextBrowser#CodeView QScrollBar:horizontal { background: #494949; height: 8px; margin: 0; border-radius: 4px; }
 QTextBrowser#CodeView QScrollBar::handle:horizontal { background: #7a7a7a; border-radius: 4px; min-width: 40px; }
 QTextBrowser#CodeView QScrollBar::handle:horizontal:hover { background: #959595; }
