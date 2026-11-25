@@ -9,7 +9,7 @@ from . import theme
 from .code_editor import CodeEditor
 from .icons import icon_pixmap
 from .terminal import Terminal, run_kind
-from .widgets import IconButton
+from .widgets import IconButton, Spinner
 
 EXT = {"python": "py", "py": "py", "javascript": "js", "js": "js", "typescript": "ts", "ts": "ts", "html": "html",
        "css": "css", "json": "json", "bash": "sh", "sh": "sh", "shell": "sh", "powershell": "ps1", "ps1": "ps1",
@@ -56,15 +56,14 @@ class CodePanel(QWidget):
         self.frame.setFixedWidth(self._width)
         outer.addWidget(self.frame, 1, Qt.AlignRight)
         v = QVBoxLayout(self.frame)
-        v.setContentsMargins(0, 14, 0, 0)
-        v.setSpacing(10)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(0)
 
-        head = QHBoxLayout()
-        head.setContentsMargins(20, 0, 12, 0)
-        head.setSpacing(6)
-        icon = QLabel()
-        icon.setPixmap(icon_pixmap("code", theme.TEXT, 18, self.devicePixelRatioF()))
-        head.addWidget(icon)
+        head_w = QFrame(objectName="PanelHead")
+        head_w.setFixedHeight(46)
+        head = QHBoxLayout(head_w)
+        head.setContentsMargins(16, 0, 10, 0)
+        head.setSpacing(8)
         self.lang_label = QLabel(objectName="PanelLang")
         head.addWidget(self.lang_label)
         self.count_label = QLabel(objectName="PanelCount")
@@ -72,9 +71,13 @@ class CodePanel(QWidget):
         self.save_label = QLabel(objectName="PanelSaved")
         head.addWidget(self.save_label)
         head.addStretch(1)
-        kw = dict(size=(34, 34), icon_size=18, radius=10, fg=theme.TEXT_DIM, fg_hover=theme.TEXT)
+        self.spinner = Spinner(16, theme.TEXT_DIM)
+        self.spinner.setToolTip("Le code s'écrit…")
+        self.spinner.hide()
+        head.addWidget(self.spinner)
+        kw = dict(size=(30, 30), icon_size=16, radius=8, fg=theme.TEXT_DIM, fg_hover=theme.TEXT, bg_hover="#2a2d34")
         self.term_btn = IconButton("terminal", tooltip="Afficher / masquer le terminal", **kw)
-        self.play_btn = IconButton("play", size=(34, 34), icon_size=17, radius=10, fg="#ffffff", fg_hover="#ffffff",
+        self.play_btn = IconButton("play", size=(30, 30), icon_size=15, radius=8, fg="#ffffff", fg_hover="#ffffff",
                                    bg="#2e8b57", bg_hover="#38a169", tooltip="Lancer (Ctrl+Entrée)")
         self.copy_btn = IconButton("copy", tooltip="Copier le code", **kw)
         self.save_btn = IconButton("download", tooltip="Enregistrer dans un fichier…", **kw)
@@ -86,7 +89,7 @@ class CodePanel(QWidget):
         self.close_btn.clicked.connect(self.close_panel)
         for b in (self.play_btn, self.term_btn, self.copy_btn, self.save_btn, self.close_btn):
             head.addWidget(b)
-        v.addLayout(head)
+        v.addWidget(head_w)
         line = QFrame(objectName="PanelLine")
         line.setFixedHeight(1)
         v.addWidget(line)
@@ -164,6 +167,8 @@ class CodePanel(QWidget):
     def _apply_readonly(self) -> None:
         ro = not (self._editable and self._closed)       # pas de modification pendant que le code s'écrit
         self.editor.setReadOnly(ro)
+        self.editor._highlight_line()
+        self.spinner.setVisible(not self._closed)
         self.editor.setToolTip("Le code est en cours d'écriture…" if not self._closed else "")
 
     def open_code(self, code: str, lang: str, closed: bool = True, editable: bool = True) -> None:
@@ -191,7 +196,7 @@ class CodePanel(QWidget):
         self._lang, self._closed = lang, closed
         if lang != self.editor._lang:
             self.editor.set_language(lang)
-        self.editor.setPlainText(code)
+        self.editor.set_code(code)           # en direct : on ajoute seulement la fin, sans tout recharger
         self._last_text = self.editor.toPlainText()
         self._loading = False
         self._apply_readonly()

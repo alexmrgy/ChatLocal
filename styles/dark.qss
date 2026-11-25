@@ -231,10 +231,11 @@ QLabel#UserQuoteHead { color: #d8d8d8; font-size: 13px; font-weight: 600; backgr
 
 /* panneau de code à droite */
 QWidget#CodePanel { background: transparent; }
-QFrame#CodeFrame { background: #1b1b1c; border: 1px solid #262728; border-radius: 12px; }
-QLabel#PanelLang { color: #f2f2f2; font-size: 15px; font-weight: 700; background: transparent; }
-QLabel#PanelCount { color: #8a8a8a; font-size: 13px; background: transparent; }
-QFrame#PanelLine { background: #2a2b2c; border: none; }
+QFrame#CodeFrame { background: #0f1013; border: 1px solid rgba(120, 140, 190, 48); border-radius: 14px; }
+QFrame#PanelHead { background: #17191e; border: none; border-top-left-radius: 13px; border-top-right-radius: 13px; }
+QLabel#PanelLang { color: #c9d1d9; font-size: 13px; font-weight: 600; background: transparent; }
+QLabel#PanelCount { color: #6b7280; font-size: 12px; background: transparent; }
+QFrame#PanelLine { background: rgba(255, 255, 255, 18); border: none; }
 QTextBrowser#PanelCode { background: transparent; border: none; color: #f0f0f0; font-size: 14px; }
 QTextBrowser#PanelCode QScrollBar:horizontal { background: #2a2a2a; height: 9px; border-radius: 4px; }
 QTextBrowser#PanelCode QScrollBar::handle:horizontal { background: #6a6a6a; border-radius: 4px; min-width: 40px; }
@@ -245,15 +246,20 @@ QPlainTextEdit#CodeEditor {
     background: transparent; color: #f0f0f0; border: none; selection-background-color: rgba(86, 140, 255, 105);
     selection-color: #ffffff;
 }
-QPlainTextEdit#CodeEditor QScrollBar:horizontal { background: #2a2a2a; height: 9px; border-radius: 4px; }
-QPlainTextEdit#CodeEditor QScrollBar::handle:horizontal { background: #6a6a6a; border-radius: 4px; min-width: 40px; }
-QPlainTextEdit#CodeEditor QScrollBar::add-line:horizontal, QPlainTextEdit#CodeEditor QScrollBar::sub-line:horizontal { width: 0; }
+QPlainTextEdit#CodeEditor QScrollBar:horizontal { background: transparent; height: 9px; margin: 0 2px; border-radius: 4px; }
+QPlainTextEdit#CodeEditor QScrollBar::handle:horizontal { background: #3c4048; border-radius: 4px; min-width: 40px; }
+QPlainTextEdit#CodeEditor QScrollBar::handle:horizontal:hover { background: #596070; }
+QPlainTextEdit#CodeEditor QScrollBar:vertical { background: transparent; width: 9px; margin: 2px 0; border-radius: 4px; }
+QPlainTextEdit#CodeEditor QScrollBar::handle:vertical { background: #3c4048; border-radius: 4px; min-height: 40px; }
+QPlainTextEdit#CodeEditor QScrollBar::handle:vertical:hover { background: #596070; }
+QPlainTextEdit#CodeEditor QScrollBar::add-line, QPlainTextEdit#CodeEditor QScrollBar::sub-line { width: 0; height: 0; }
+QPlainTextEdit#CodeEditor QScrollBar::add-page, QPlainTextEdit#CodeEditor QScrollBar::sub-page { background: transparent; }
 QLabel#PanelSaved { color: #6fbf8b; font-size: 12px; background: transparent; }
 QSplitter#CodeSplit::handle:vertical { background: #232425; }
-QWidget#TerminalBox { background: #141414; border-top: 1px solid #2a2b2c; }
+QWidget#TerminalBox { background: #0c0d0f; border-top: 1px solid #2a2b2c; }
 QLabel#TermTitle { color: #e6e6e6; font-size: 13px; font-weight: 700; background: transparent; }
 QLabel#TermStatus { font-size: 12px; background: transparent; }
-QPlainTextEdit#TermOut { background: #141414; border: none; color: #e6e6e6; selection-background-color: rgba(86, 140, 255, 105); }
+QPlainTextEdit#TermOut { background: #0c0d0f; border: none; color: #e6e6e6; selection-background-color: rgba(86, 140, 255, 105); }
 QLabel#TermPrompt { color: #7aa7ff; font-family: "Cascadia Mono", Consolas, monospace; font-size: 14px; background: transparent; }
 QLineEdit#TermInput {
     background: #1d1d1e; border: 1px solid #2f3031; border-radius: 8px; padding: 6px 10px; color: #ececec;
