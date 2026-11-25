@@ -8,8 +8,8 @@ import tempfile
 import time
 
 from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QVBoxLayout, QWidget
+from PySide6.QtGui import QColor, QFont, QPainter, QTextCharFormat, QTextCursor
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QVBoxLayout, QWidget
 
 from . import theme
 from .widgets import IconButton
@@ -54,6 +54,22 @@ def find_c_compiler() -> str | None:
     return None
 
 
+class _Dots(QWidget):
+    """Trois pastilles de couleur façon fenêtre de terminal (peintes : aucune police nécessaire)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(46, 12)
+
+    def paintEvent(self, e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setPen(Qt.NoPen)
+        for i, c in enumerate(("#ff5f57", "#febc2e", "#28c840")):
+            p.setBrush(QColor(c))
+            p.drawEllipse(i * 17, 1, 10, 10)
+
+
 class Terminal(QWidget):
     runningChanged = Signal(bool)
     closeRequested = Signal()
@@ -71,12 +87,21 @@ class Terminal(QWidget):
         self._retries = 0
         self._blocked = False         # Windows a refusé d'exécuter le .exe compilé
 
-        v = QVBoxLayout(self)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(10, 2, 10, 10)          # le terminal est une carte arrondie dans le panneau
+        root.setSpacing(0)
+        card = QFrame(objectName="TermCard")
+        root.addWidget(card)
+        v = QVBoxLayout(card)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(0)
-        head = QHBoxLayout()
-        head.setContentsMargins(16, 8, 10, 6)
-        head.setSpacing(6)
+        head_w = QFrame(objectName="TermHead")
+        head_w.setFixedHeight(40)
+        head = QHBoxLayout(head_w)
+        head.setContentsMargins(14, 0, 8, 0)
+        head.setSpacing(8)
+        head.addWidget(_Dots())
+        head.addSpacing(4)
         head.addWidget(QLabel("Terminal", objectName="TermTitle"))
         self.status = QLabel(objectName="TermStatus")
         head.addWidget(self.status)
@@ -89,12 +114,13 @@ class Terminal(QWidget):
                                     tooltip="Fermer le terminal")
         self.close_btn.clicked.connect(self.closeRequested)
         head.addWidget(self.close_btn)
-        v.addLayout(head)
+        v.addWidget(head_w)
 
         self.out = QPlainTextEdit(objectName="TermOut")
         self.out.setReadOnly(True)
         self.out.setMaximumBlockCount(5000)
         self.out.setFrameShape(QPlainTextEdit.NoFrame)
+        self.out.document().setDocumentMargin(12)
         f = QFont()
         f.setFamilies(["Cascadia Mono", "Consolas", "monospace"])
         f.setPixelSize(13)
@@ -102,7 +128,7 @@ class Terminal(QWidget):
         v.addWidget(self.out, 1)
 
         row = QHBoxLayout()
-        row.setContentsMargins(16, 6, 12, 10)
+        row.setContentsMargins(12, 4, 12, 12)
         row.setSpacing(8)
         self.prompt = QLabel(">", objectName="TermPrompt")
         row.addWidget(self.prompt)

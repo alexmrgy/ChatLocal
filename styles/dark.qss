@@ -260,14 +260,18 @@ QPushButton#OpenEditorBtn {
 }
 QPushButton#OpenEditorBtn:hover { background: #2a2d34; color: #ffffff; border-color: rgba(255, 255, 255, 60); }
 QLabel#PanelSaved { color: #6fbf8b; font-size: 12px; background: transparent; }
-QSplitter#CodeSplit::handle:vertical { background: #232425; }
-QWidget#TerminalBox { background: #0c0d0f; border-top: 1px solid #2a2b2c; }
-QLabel#TermTitle { color: #e6e6e6; font-size: 13px; font-weight: 700; background: transparent; }
+QSplitter#CodeSplit::handle:vertical { background: transparent; }
+QWidget#TerminalBox { background: transparent; border: none; }
+QFrame#TermCard { background: #0b0c0e; border: 1px solid rgba(120, 140, 190, 48); border-radius: 14px; }
+QFrame#TermHead { background: #15171b; border: none; border-bottom: 1px solid rgba(255, 255, 255, 14);
+    border-top-left-radius: 13px; border-top-right-radius: 13px; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+QLabel#TermDots { background: transparent; font-size: 11px; }
+QLabel#TermTitle { color: #9aa1ad; font-size: 12px; font-weight: 600; background: transparent; }
 QLabel#TermStatus { font-size: 12px; background: transparent; }
-QPlainTextEdit#TermOut { background: #0c0d0f; border: none; color: #e6e6e6; selection-background-color: rgba(86, 140, 255, 105); }
+QPlainTextEdit#TermOut { background: transparent; border: none; color: #e6e6e6; selection-background-color: rgba(86, 140, 255, 105); }
 QLabel#TermPrompt { color: #7aa7ff; font-family: "Cascadia Mono", Consolas, monospace; font-size: 14px; background: transparent; }
 QLineEdit#TermInput {
-    background: #1d1d1e; border: 1px solid #2f3031; border-radius: 8px; padding: 6px 10px; color: #ececec;
+    background: #15171b; border: 1px solid rgba(255, 255, 255, 22); border-radius: 10px; padding: 7px 12px; color: #ececec;
     font-family: "Cascadia Mono", Consolas, monospace; font-size: 13px; selection-background-color: rgba(86, 140, 255, 105);
 }
 QLineEdit#TermInput:focus { border-color: #4867be; }
