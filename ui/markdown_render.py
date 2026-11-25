@@ -13,7 +13,7 @@ from pygments.lexers import TextLexer, get_lexer_by_name
 from . import theme
 
 _FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})\s*([\w+#.-]*)")
-_FORMATTER = HtmlFormatter(nowrap=True, noclasses=True, style="one-dark")
+_FORMATTER = HtmlFormatter(nowrap=True, noclasses=True, style="github-dark")
 
 DOC_CSS = f"""
 body {{ color: {theme.TEXT}; }}
@@ -133,10 +133,16 @@ def md_to_html(text: str) -> str:
 
 
 @lru_cache(maxsize=256)
-def code_to_html(code: str, lang: str) -> str:
+def code_to_html(code: str, lang: str, numbers: bool = False) -> str:
     try:
         lexer = get_lexer_by_name(lang) if lang else TextLexer()
     except Exception:
         lexer = TextLexer()
     body = highlight(code, lexer, _FORMATTER).rstrip("\n")
-    return f"<pre>{body}</pre>"
+    if not numbers or chr(10) not in body:
+        return f"<pre>{body}</pre>"
+    n = body.count(chr(10)) + 1
+    gutter = chr(10).join(str(i) for i in range(1, n + 1))
+    return ('<table cellspacing="0" cellpadding="0"><tr>'
+            f'<td align="right" style="color:#565c68; padding-right:16px;"><pre>{gutter}</pre></td>'
+            f'<td><pre>{body}</pre></td></tr></table>')

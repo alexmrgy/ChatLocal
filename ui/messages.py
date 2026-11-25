@@ -149,16 +149,16 @@ class CodeBlock(QFrame):
         m = self.SHADOW
         card = QRectF(self.rect()).adjusted(m + 0.5, m + 0.5, -m - 0.5, -m - 0.5)
         path = QPainterPath()
-        path.addRoundedRect(card, 12, 12)
+        path.addRoundedRect(card, 14, 14)
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor("#141415"))                    # corps du code
+        p.setBrush(QColor("#0f1013"))                    # corps du code
         p.drawPath(path)
         p.save()
         p.setClipPath(path)                              # bandeau d'en-tête un peu plus clair
-        p.fillRect(QRectF(card.left(), card.top(), card.width(), self.HEAD_H), QColor("#1d1d1f"))
-        p.fillRect(QRectF(card.left(), card.top() + self.HEAD_H, card.width(), 1), QColor(255, 255, 255, 14))
+        p.fillRect(QRectF(card.left(), card.top(), card.width(), self.HEAD_H), QColor("#17191e"))
+        p.fillRect(QRectF(card.left(), card.top() + self.HEAD_H, card.width(), 1), QColor(255, 255, 255, 18))
         p.restore()
-        p.setPen(QPen(QColor(255, 255, 255, 26), 1))     # liseré fin
+        p.setPen(QPen(QColor(120, 140, 190, 48), 1))     # liseré fin
         p.setBrush(Qt.NoBrush)
         p.drawPath(path)
 
@@ -167,7 +167,7 @@ class CodeBlock(QFrame):
             return
         self._code, self._lang, self._closed = code, lang, closed
         self.lang_label.setText((lang or "code").lower())
-        self.body.setHtml(code_to_html(code, lang))
+        self.body.setHtml(code_to_html(code, lang, True))
         fmt = QTextBlockFormat()
         fmt.setLineHeight(125, QTextBlockFormat.ProportionalHeight.value)
         cur = QTextCursor(self.body.document())
