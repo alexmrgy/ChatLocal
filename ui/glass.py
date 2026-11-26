@@ -12,9 +12,14 @@ RADIUS = 20
 
 def blurred_backdrop(window: QWidget) -> QPixmap:
     """Capture de la fenêtre (calque verre masqué) puis flou par réductions/agrandissements lissés."""
-    snap = window.grab()
+    return blur_pixmap(window.grab())
+
+
+def blur_pixmap(snap: QPixmap) -> QPixmap:
+    """Flou d'une capture déjà faite (une 1re réduction rapide divise le coût par plusieurs)."""
     size = snap.size()
-    small = snap.scaled(max(1, size.width() // 14), max(1, size.height() // 14),
+    half = snap.scaled(max(1, size.width() // 3), max(1, size.height() // 3), Qt.IgnoreAspectRatio, Qt.FastTransformation)
+    small = half.scaled(max(1, size.width() // 14), max(1, size.height() // 14),
                         Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
     mid = small.scaled(max(1, size.width() // 5), max(1, size.height() // 5),
                        Qt.IgnoreAspectRatio, Qt.SmoothTransformation)

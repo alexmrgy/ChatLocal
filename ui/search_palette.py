@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QButtonGroup, QFrame, QGraphicsOpacityEffect, QHB
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from . import theme
-from .glass import blurred_backdrop, paint_overlay
+from .glass import blur_pixmap, paint_overlay
 from .icons import icon_pixmap
 
 CARD_W, CARD_H = 560, 440
@@ -86,6 +86,7 @@ class SearchPalette(QWidget):
         self._sel = 0
         self._closing = False
         self._backdrop: QPixmap | None = None
+        self._behind: QPixmap | None = None   # photo nette de la fenêtre : rien à redessiner dessous pendant le fondu
 
         self.card = QFrame(self, objectName="PaletteCard")
         v = QVBoxLayout(self.card)
@@ -137,7 +138,7 @@ class SearchPalette(QWidget):
         self._fade.valueChanged.connect(self._set_op)
         self._slide = QPropertyAnimation(self.card, b"pos", self)
         for a in (self._fade, self._slide):
-            a.setDuration(260)
+            a.setDuration(170)
             a.setEasingCurve(QEasingCurve.OutCubic)
             self._anim.addAnimation(a)
         self._anim.finished.connect(self._anim_done)
@@ -155,24 +156,29 @@ class SearchPalette(QWidget):
 
     def paintEvent(self, e) -> None:
         p = QPainter(self)
+        if self._behind is not None:
+            p.drawPixmap(0, 0, self._behind)
         p.setOpacity(self._op)
         paint_overlay(p, self.rect(), self.card.geometry(), self._backdrop)
 
     def open(self, convs) -> None:
-        self._backdrop = blurred_backdrop(self.parentWidget()) if not self.isVisible() else self._backdrop
+        if not self.isVisible():
+            self._behind = self.parentWidget().grab()          # une seule capture pour le fond et le flou
+            self._backdrop = blur_pixmap(self._behind)
+            self.setAttribute(Qt.WA_OpaquePaintEvent, True)
         self._convs = list(convs)
         self._closing = False
         self.edit.clear()
         self._tab = 0
         self.setGeometry(self.parentWidget().rect())
         self._layout_card()
+        self._rebuild()            # liste prête avant le fondu : aucun à-coup pendant l'animation
         self._op = 0.0
         self._fx.setOpacity(0.0)
         self.show()
         self.raise_()
         self.edit.setFocus()
         self._run(True)
-        QTimer.singleShot(0, self._rebuild)   # le contenu se remplit après le 1er rendu : pas de saccade à l'ouverture
 
     def close_palette(self) -> None:
         if self.isVisible() and not self._closing:
@@ -206,6 +212,9 @@ class SearchPalette(QWidget):
 
     def resizeEvent(self, e) -> None:
         super().resizeEvent(e)
+        if self._behind is not None and e.oldSize().isValid() and e.size() != e.oldSize():
+            self._behind = None                      # fenêtre redimensionnée : la photo ne correspond plus
+            self.setAttribute(Qt.WA_OpaquePaintEvent, False)
         if self.isVisible() and not self._anim.state():
             self._layout_card()
 
