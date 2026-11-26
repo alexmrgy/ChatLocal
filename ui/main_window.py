@@ -321,6 +321,10 @@ class MainWindow(QWidget):
         self.confirm_dialog = ConfirmDialog(self)
 
     def open_search(self) -> None:
+        """Ouvre la recherche ; la referme si elle est déjà ouverte (2e appui sur Ctrl+K)."""
+        if self.palette.isVisible() and not self.palette._closing:
+            self.palette.close_palette()
+            return
         self.palette.open([c for c in self.db.list_conversations() if not c["archived"]])
 
     def _place_input(self, page: int) -> None:
