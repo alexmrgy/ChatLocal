@@ -59,6 +59,7 @@ Tes conversations sont enregistrées sur ton PC, rangées dans des dossiers, et 
 | ⚖️ **Comparaison de modèles** | Suis une vraie conversation avec deux modèles à la fois : réponses côte à côte, chacun se souvient de ses propres réponses, avec temps de réponse et longueur (`Ctrl+Maj+M`). Les comparaisons sont enregistrées dans l'historique et se rouvrent comme une conversation. |
 | 🇫🇷 **Réponses en français** | Tous les modèles répondent toujours en français, avec des emojis adaptés au sujet. |
 | 🕐 **Heure du PC** | Tous les modèles connaissent la date et l'heure de ton ordinateur et peuvent te les donner si tu les demandes. |
+| 🧠 **Mémoire** | Écris « Souviens-toi que … » : l'IA s'en rappelle dans toutes tes discussions. Voir, ajouter ou effacer les souvenirs avec `Ctrl+M`. Stockés sur ton PC, ils sont envoyés avec tes messages au modèle utilisé (y compris NVIDIA ou Claude). Jamais utilisée en chat éphémère. |
 | 🕶️ **Chat éphémère** | Une conversation qui n'est jamais enregistrée. |
 | 🧑‍💻 **Panneau de code** | Les longs blocs de code s'ouvrent à droite, dans un éditeur avec numéros de ligne et coloration. |
 | ▶️ **Terminal intégré** | Lance du code Python ou C directement depuis la réponse. |
@@ -228,6 +229,7 @@ et Python doit être installé si tu veux lancer du code Python depuis le termin
 | `Ctrl` + `B` | Afficher / masquer l'historique |
 | `Ctrl` + `Maj` + `L` | Toutes les discussions |
 | `Ctrl` + `Maj` + `M` | Comparer deux modèles |
+| `Ctrl` + `M` | Mémoire de l'IA |
 | `F2` | Renommer la conversation |
 | `Ctrl` + `Alt` + `P` | Épingler / désépingler |
 | `Ctrl` + `Maj` + `A` | Archiver |
@@ -245,6 +247,7 @@ ChatLocal/
 ├── main.py            point d'entrée
 ├── ChatLocal.pyw      lanceur par double-clic (sans console, sans application à télécharger)
 ├── Installer ChatLocal.bat   installation en un clic + raccourci sur le Bureau
+├── memory.py          mémoire de l'IA (détection et mise en forme)
 ├── attachments.py     lecture et limites des fichiers joints
 ├── system_prompt.py   consignes envoyées aux modèles (français, emojis, heure du PC)
 ├── ui/                interface PySide6 (fenêtre, chat, sidebar, éditeur, terminal…)
