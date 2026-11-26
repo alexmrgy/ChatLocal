@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (QGraphicsOpacityEffect, QApplication, QFileDialog
                                QVBoxLayout, QWidget)
 
 import attachments
+import memory
 from database.db import Database
 from database.db import _load_files as load_files
 from claude_api import client as claude_client
@@ -26,6 +27,7 @@ from .code_panel import CodePanel
 from .compare import ComparePage
 from .input_bar import InputBar
 from .manager import ManagerPage
+from .memory_dialog import MemoryDialog
 from .messages import CODE_HOOKS, COLUMN_MAX, AssistantMessage, ChatView
 from .action_menu import SEP, ActionMenu, MenuItem
 from .dialogs import ConfirmDialog, TextPrompt
@@ -368,12 +370,13 @@ class MainWindow(QWidget):
         state = self._act("État d'Ollama…", self._show_state)
         about = self._act("À propos", self._about)
         reset = self._act("Réactiver les confirmations", self.reset_confirms)
+        mem = self._act("Mémoire de l'IA…", self.show_memory, "Ctrl+M")
         self._act("Arrêter la génération", self.stop_generation, "Esc")
         ephem = self._act("Chat éphémère", self.toggle_ephemeral, "Ctrl+Shift+N")
 
         for title, acts in (
             ("Fichier", [new, ephem, search, refresh, None, quit_]),
-            ("Modifier", [rename, pin, arch, delete, None, copy_last]),
+            ("Modifier", [rename, pin, arch, delete, None, copy_last, mem]),
             ("Affichage", [hist, allc, compare, self._code_auto_action, codeclose, full]),
             ("Aide", [state, reset, about]),
         ):
@@ -384,6 +387,7 @@ class MainWindow(QWidget):
         self._more = make_menu(self)
         self._more.addAction(new)
         self._more.addAction(compare)
+        self._more.addAction(mem)
         self._more.addAction(refresh)
 
     # ------------------------------------------------------------ fenêtre
@@ -523,8 +527,20 @@ class MainWindow(QWidget):
             self._fetch_claude(self.claude_key, announce=False)
         self.toast.show_message("Actualisation des modèles…", 1500)
 
+    def _memory_on(self) -> bool:
+        return self.db.get_setting("memory_enabled", "1") == "1"
+
+    def _with_memory(self, msgs: list) -> list:
+        """Ajoute en tête les souvenirs de l'utilisateur, si la mémoire est activée."""
+        block = memory.system_block([r["content"] for r in self.db.list_memories()]) if self._memory_on() else None
+        return [block] + msgs if block else msgs
+
+    def show_memory(self) -> None:
+        MemoryDialog(self.db, self).exec()
+
     def _compare_stream(self, model: str, msgs: list):
         """Flux de réponse pour la page de comparaison (Ollama ou NVIDIA)."""
+        msgs = self._with_memory(msgs)
         if model.startswith(claude_client.PREFIX):
             if not self.claude_key:
                 raise ValueError("Connecte Claude (clé API) pour comparer un modèle Claude.")
@@ -1188,6 +1204,12 @@ class MainWindow(QWidget):
             self.history_panel.select(self.cid)
 
         msgs = [self._model_msg(m) for m in self.history]
+        if not self.ephemeral:
+            if self._memory_on():
+                fact = memory.extract(text)
+                if fact and self.db.add_memory(fact):
+                    self.toast.show_message("Ajouté à la mémoire", 2200)
+            msgs = self._with_memory(msgs)
         if is_nvidia and any("images" in m for m in msgs):
             msgs = [{k: v for k, v in m.items() if k != "images"} for m in msgs]
             self.toast.show_message("Les images ne sont pas envoyées aux modèles NVIDIA.", 3500)

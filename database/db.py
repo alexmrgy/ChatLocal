@@ -44,6 +44,10 @@ class Database:
                 created_at REAL NOT NULL);
             CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conversation_id, id);
             CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE IF NOT EXISTS memories(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                created_at REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS folders(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -250,6 +254,23 @@ class Database:
         return self.current_path(cid)
 
     # réglages
+    # mémoire de l'IA
+    def add_memory(self, content: str) -> int | None:
+        """Ajoute un souvenir ; None s'il est vide ou déjà connu."""
+        content = " ".join(content.split())
+        if not content or any(r["content"].casefold() == content.casefold() for r in self.list_memories()):
+            return None
+        cur = self.db.execute("INSERT INTO memories(content, created_at) VALUES(?,?)", (content, time.time()))
+        self.db.commit()
+        return cur.lastrowid
+
+    def list_memories(self) -> list[sqlite3.Row]:
+        return self.db.execute("SELECT * FROM memories ORDER BY id").fetchall()
+
+    def delete_memory(self, mid: int) -> None:
+        self.db.execute("DELETE FROM memories WHERE id=?", (mid,))
+        self.db.commit()
+
     def get_setting(self, key: str, default: str | None = None) -> str | None:
         row = self.db.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
         return row["value"] if row else default

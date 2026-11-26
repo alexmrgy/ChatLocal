@@ -41,5 +41,12 @@ def system_message(now: datetime | None = None) -> dict:
 
 
 def with_time(messages: list[dict], now: datetime | None = None) -> list[dict]:
-    """Ajoute le message système avec l'heure, en tête (sans modifier la liste d'origine)."""
-    return [system_message(now)] + list(messages)
+    """Ajoute le message système avec l'heure, en tête (sans modifier la liste d'origine).
+
+    Les autres messages système (mémoire…) sont fusionnés dedans : certains modèles n'en lisent qu'un.
+    """
+    head = system_message(now)
+    extra = [m["content"] for m in messages if m["role"] == "system"]
+    if extra:
+        head["content"] = "\n\n".join([head["content"], *extra])
+    return [head] + [m for m in messages if m["role"] != "system"]
